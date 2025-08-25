@@ -23,9 +23,14 @@ const ChatInterface = forwardRef<ChatInterfaceRef>((props, ref) => {
   }
 
   const loadChatHistory = useCallback(async () => {
-    const { data, error } = await supabaseService.getChatHistory(sessionId)
-    if (!error && data) {
-      setMessages(data)
+    try {
+      const { data, error } = await supabaseService.getChatHistory(sessionId)
+      if (!error && data) {
+        setMessages(data)
+      }
+    } catch (error) {
+      console.log('Failed to load chat history:', error)
+      // Continue without chat history - start with empty messages
     }
   }, [sessionId])
 
