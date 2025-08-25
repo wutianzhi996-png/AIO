@@ -60,6 +60,19 @@ class SupabaseService {
     return { data, error: error?.message || null }
   }
 
+  async deleteOKR(okrId: string): Promise<{ error: string | null }> {
+    const { data: { user } } = await this.supabase.auth.getUser()
+    if (!user) return { error: 'Not authenticated' }
+
+    const { error } = await this.supabase
+      .from('okrs')
+      .delete()
+      .eq('id', okrId)
+      .eq('user_id', user.id) // Ensure user can only delete their own OKRs
+
+    return { error: error?.message || null }
+  }
+
   async saveChatMessage(sessionId: string, role: 'user' | 'assistant', content: string) {
     const { data: { user } } = await this.supabase.auth.getUser()
     if (!user) return { error: 'Not authenticated' }

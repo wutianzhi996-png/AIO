@@ -66,8 +66,6 @@ export default function Dashboard() {
     )
   }
 
-  const currentOKR = okrs[0] // Show most recent OKR
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
       {/* Header */}
@@ -101,12 +99,12 @@ export default function Dashboard() {
       </header>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 h-[calc(100vh-12rem)]">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 min-h-[calc(100vh-12rem)]">
           {/* Left Sidebar - OKR Section */}
           <div className="lg:col-span-1 space-y-6 animate-fade-in">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-semibold text-gray-900">🎯 学习目标</h2>
-              {currentOKR && !showOKRForm && (
+              {!showOKRForm && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -123,9 +121,13 @@ export default function Dashboard() {
               <div className="animate-fade-in">
                 <OKRForm onSuccess={handleOKRSuccess} />
               </div>
-            ) : currentOKR ? (
-              <div className="animate-fade-in">
-                <OKRDisplay okr={currentOKR} />
+            ) : okrs.length > 0 ? (
+              <div className="space-y-4 max-h-[60vh] overflow-y-auto">
+                {okrs.map((okr, index) => (
+                  <div key={okr.id} className="animate-fade-in" style={{ animationDelay: `${index * 0.1}s` }}>
+                    <OKRDisplay okr={okr} onDelete={loadUserData} />
+                  </div>
+                ))}
               </div>
             ) : (
               <div className="bg-white/70 backdrop-blur-sm p-6 rounded-xl card-shadow text-center border border-white/20 animate-fade-in">
