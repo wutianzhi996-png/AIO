@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import ChatInterface from '@/components/ChatInterface'
+import ChatInterface, { ChatInterfaceRef } from '@/components/ChatInterface'
 import OKRForm from '@/components/OKRForm'
 import OKRDisplay from '@/components/OKRDisplay'
 import { supabaseService } from '@/lib/services/supabase-service'
@@ -16,6 +16,7 @@ export default function Dashboard() {
   const [okrs, setOKRs] = useState<OKR[]>([])
   const [showOKRForm, setShowOKRForm] = useState(false)
   const [loading, setLoading] = useState(true)
+  const chatRef = useRef<ChatInterfaceRef>(null)
   const router = useRouter()
 
   const loadUserData = useCallback(async () => {
@@ -48,6 +49,10 @@ export default function Dashboard() {
   const handleOKRSuccess = () => {
     setShowOKRForm(false)
     loadUserData() // Reload to get latest OKRs
+  }
+
+  const handleQuickAction = (message: string) => {
+    chatRef.current?.sendMessage(message)
   }
 
   if (loading) {
@@ -147,17 +152,47 @@ export default function Dashboard() {
                 快速开始
               </h3>
               <div className="space-y-3 text-sm">
-                <div className="flex items-start space-x-3 p-2 rounded-lg hover:bg-white/50 transition-colors">
+                <div 
+                  className="flex items-start space-x-3 p-2 rounded-lg hover:bg-white/50 transition-colors cursor-pointer group"
+                  onClick={() => handleQuickAction("今天我该做什么？")}
+                >
                   <span className="text-lg">💡</span>
-                  <p className="text-gray-700">问我&quot;今天我该做什么？&quot;获取任务建议</p>
+                  <div className="flex-1">
+                    <p className="text-gray-700 group-hover:text-blue-600 transition-colors">
+                      问我&quot;今天我该做什么？&quot;获取任务建议
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1 group-hover:text-blue-500 transition-colors">
+                      点击直接向右侧学习助手提问
+                    </p>
+                  </div>
                 </div>
-                <div className="flex items-start space-x-3 p-2 rounded-lg hover:bg-white/50 transition-colors">
+                <div 
+                  className="flex items-start space-x-3 p-2 rounded-lg hover:bg-white/50 transition-colors cursor-pointer group"
+                  onClick={() => handleQuickAction("帮我制定一个学习计划")}
+                >
                   <span className="text-lg">📚</span>
-                  <p className="text-gray-700">遇到学习问题时随时向我提问</p>
+                  <div className="flex-1">
+                    <p className="text-gray-700 group-hover:text-blue-600 transition-colors">
+                      遇到学习问题时随时向我提问
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1 group-hover:text-blue-500 transition-colors">
+                      点击获取学习计划建议
+                    </p>
+                  </div>
                 </div>
-                <div className="flex items-start space-x-3 p-2 rounded-lg hover:bg-white/50 transition-colors">
+                <div 
+                  className="flex items-start space-x-3 p-2 rounded-lg hover:bg-white/50 transition-colors cursor-pointer group"
+                  onClick={() => handleQuickAction("我的学习进度如何？如何更新OKR？")}
+                >
                   <span className="text-lg">🎯</span>
-                  <p className="text-gray-700">完成任务后记得更新你的 OKR</p>
+                  <div className="flex-1">
+                    <p className="text-gray-700 group-hover:text-blue-600 transition-colors">
+                      完成任务后记得更新你的 OKR
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1 group-hover:text-blue-500 transition-colors">
+                      点击了解进度和OKR更新方法
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -165,7 +200,7 @@ export default function Dashboard() {
 
           {/* Right Main Area - Chat Interface */}
           <div className="lg:col-span-2 animate-fade-in">
-            <ChatInterface />
+            <ChatInterface ref={chatRef} />
           </div>
         </div>
       </div>

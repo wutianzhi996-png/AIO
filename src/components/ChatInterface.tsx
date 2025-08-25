@@ -1,13 +1,17 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ChatMessage } from '@/lib/supabase/types'
 import { supabaseService } from '@/lib/services/supabase-service'
 import { Send } from 'lucide-react'
 
-export default function ChatInterface() {
+export interface ChatInterfaceRef {
+  sendMessage: (message: string) => void
+}
+
+const ChatInterface = forwardRef<ChatInterfaceRef>((props, ref) => {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [inputMessage, setInputMessage] = useState('')
   const [loading, setLoading] = useState(false)
@@ -33,11 +37,10 @@ export default function ChatInterface() {
     scrollToBottom()
   }, [messages])
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!inputMessage.trim() || loading) return
+  const sendMessage = useCallback(async (message: string) => {
+    if (!message.trim() || loading) return
 
-    const userMessage = inputMessage.trim()
+    const userMessage = message.trim()
     setInputMessage('')
     setLoading(true)
 
@@ -91,7 +94,17 @@ export default function ChatInterface() {
     } finally {
       setLoading(false)
     }
+  }, [loading, sessionId])
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!inputMessage.trim()) return
+    await sendMessage(inputMessage)
   }
+
+  useImperativeHandle(ref, () => ({
+    sendMessage
+  }), [sendMessage])
 
   return (
     <div className="flex flex-col h-full bg-white/70 backdrop-blur-sm rounded-xl card-shadow border border-white/20">
@@ -214,4 +227,8 @@ export default function ChatInterface() {
       </form>
     </div>
   )
-}
+})
+
+ChatInterface.displayName = 'ChatInterface'
+
+export default ChatInterface
