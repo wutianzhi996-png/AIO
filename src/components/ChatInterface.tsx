@@ -100,7 +100,7 @@ const ChatInterface = forwardRef<ChatInterfaceRef>((props, ref) => {
         session_id: sessionId,
         message: { 
           role: 'assistant', 
-          content: `抱歉，我现在无法回应。错误信息：${error.message || error.toString()}\n\n请检查网络连接或稍后再试。` 
+          content: `抱歉，我现在无法回应。错误信息：${error instanceof Error ? error.message : String(error)}\n\n请检查网络连接或稍后再试。` 
         },
         created_at: new Date().toISOString()
       }

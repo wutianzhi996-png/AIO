@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
         response = completion.choices[0].message.content || '抱歉，我无法理解您的问题。'
       } catch (grokError) {
         console.error('Grok API error:', grokError)
-        response = `Grok API 调用失败: ${grokError.message || 'Unknown error'}`
+        response = `Grok API 调用失败: ${grokError instanceof Error ? grokError.message : 'Unknown error'}`
       }
     }
 
@@ -114,10 +114,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ response })
   } catch (error) {
     console.error('Chat API error:', error)
-    console.error('Error stack:', error.stack)
+    if (error instanceof Error) {
+      console.error('Error stack:', error.stack)
+    }
     return NextResponse.json({ 
       error: 'Internal server error',
-      details: error.message 
+      details: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 })
   }
 }
