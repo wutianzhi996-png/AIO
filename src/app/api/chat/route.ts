@@ -3,7 +3,8 @@ import OpenAI from 'openai'
 import { createClient } from '@/lib/supabase/server'
 
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+  apiKey: process.env.XAI_API_KEY,
+  baseURL: 'https://api.x.ai/v1',
 })
 
 export async function POST(request: NextRequest) {
@@ -54,7 +55,7 @@ export async function POST(request: NextRequest) {
 任务要具体可执行，与OKR直接相关。`
 
         const completion = await openai.chat.completions.create({
-          model: 'gpt-3.5-turbo',
+          model: 'grok-beta',
           messages: [{ role: 'user', content: taskPrompt }],
           temperature: 0.7,
         })
@@ -101,7 +102,7 @@ ${context}
           : '你是一位专业的学习助手。请用中文回答用户的问题，语言要清晰易懂。'
 
         const completion = await openai.chat.completions.create({
-          model: 'gpt-3.5-turbo',
+          model: 'grok-beta',
           messages: [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: message }
@@ -114,7 +115,7 @@ ${context}
         console.error('RAG error:', error)
         // Fallback to general response
         const completion = await openai.chat.completions.create({
-          model: 'gpt-3.5-turbo',
+          model: 'grok-beta',
           messages: [
             { role: 'system', content: '你是一位专业的学习助手。请用中文回答用户的问题，语言要清晰易懂。' },
             { role: 'user', content: message }
