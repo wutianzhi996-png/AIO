@@ -94,63 +94,122 @@ export default function ChatInterface() {
   }
 
   return (
-    <div className="flex flex-col h-full bg-white rounded-lg shadow-md">
-      <div className="p-4 border-b">
-        <h2 className="text-xl font-semibold">AI 学习助手</h2>
+    <div className="flex flex-col h-full bg-white/70 backdrop-blur-sm rounded-xl card-shadow border border-white/20">
+      <div className="p-4 border-b border-gray-100/50">
+        <div className="flex items-center space-x-3">
+          <div className="w-8 h-8 bg-gradient-to-r from-green-400 to-blue-500 rounded-lg flex items-center justify-center">
+            <span className="text-white font-bold text-sm">AI</span>
+          </div>
+          <h2 className="text-xl font-semibold text-gray-900">学习助手</h2>
+          <div className="flex items-center space-x-1">
+            <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+            <span className="text-xs text-green-600 font-medium">在线</span>
+          </div>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.length === 0 ? (
-          <div className="text-center text-gray-500 py-8">
-            <p>你好！我是你的学习助手。</p>
-            <p>你可以问我学习相关的问题，或者问&quot;今天我该做什么？&quot;获取任务建议。</p>
+          <div className="text-center py-12 animate-fade-in">
+            <div className="w-20 h-20 bg-gradient-to-r from-blue-400 to-purple-500 rounded-full flex items-center justify-center mx-auto mb-6">
+              <span className="text-white text-2xl">👋</span>
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">你好！我是你的学习助手</h3>
+            <p className="text-gray-600 mb-6 max-w-md mx-auto">
+              我可以帮助你制定学习计划、回答学习问题、提供任务建议等。让我们开始学习之旅吧！
+            </p>
+            <div className="grid grid-cols-1 gap-3 max-w-sm mx-auto">
+              <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-3 rounded-lg border border-blue-100">
+                <p className="text-sm text-gray-700">💡 &quot;今天我该做什么？&quot;</p>
+              </div>
+              <div className="bg-gradient-to-r from-green-50 to-blue-50 p-3 rounded-lg border border-green-100">
+                <p className="text-sm text-gray-700">📚 &quot;帮我制定学习计划&quot;</p>
+              </div>
+              <div className="bg-gradient-to-r from-purple-50 to-pink-50 p-3 rounded-lg border border-purple-100">
+                <p className="text-sm text-gray-700">🎯 &quot;我的学习进度如何？&quot;</p>
+              </div>
+            </div>
           </div>
         ) : (
-          messages.map((msg) => (
+          messages.map((msg, index) => (
             <div
               key={msg.id}
-              className={`flex ${msg.message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+              className={`flex ${msg.message.role === 'user' ? 'justify-end' : 'justify-start'} animate-slide-in`}
+              style={{ animationDelay: `${index * 0.1}s` }}
             >
-              <div
-                className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                  msg.message.role === 'user'
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-gray-100 text-gray-800'
-                }`}
-              >
-                <p className="whitespace-pre-wrap">{msg.message.content}</p>
-                <p className="text-xs opacity-70 mt-1">
-                  {new Date(msg.created_at).toLocaleTimeString('zh-CN', {
-                    hour: '2-digit',
-                    minute: '2-digit'
-                  })}
-                </p>
+              <div className="flex items-end space-x-2 max-w-[80%] lg:max-w-[70%]">
+                {msg.message.role === 'assistant' && (
+                  <div className="w-8 h-8 bg-gradient-to-r from-green-400 to-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
+                    <span className="text-white font-bold text-xs">AI</span>
+                  </div>
+                )}
+                <div
+                  className={`px-4 py-3 rounded-2xl ${
+                    msg.message.role === 'user'
+                      ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-br-sm'
+                      : 'bg-white/80 backdrop-blur-sm text-gray-800 border border-gray-100 rounded-bl-sm'
+                  } card-shadow`}
+                >
+                  <p className="whitespace-pre-wrap text-sm leading-relaxed">{msg.message.content}</p>
+                  <p className={`text-xs mt-2 ${msg.message.role === 'user' ? 'text-blue-100' : 'text-gray-500'}`}>
+                    {new Date(msg.created_at).toLocaleTimeString('zh-CN', {
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </p>
+                </div>
+                {msg.message.role === 'user' && (
+                  <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center flex-shrink-0">
+                    <span className="text-white font-bold text-xs">你</span>
+                  </div>
+                )}
               </div>
             </div>
           ))
         )}
         {loading && (
-          <div className="flex justify-start">
-            <div className="bg-gray-100 text-gray-800 px-4 py-2 rounded-lg">
-              <p>正在思考中...</p>
+          <div className="flex justify-start animate-fade-in">
+            <div className="flex items-end space-x-2">
+              <div className="w-8 h-8 bg-gradient-to-r from-green-400 to-blue-500 rounded-full flex items-center justify-center">
+                <span className="text-white font-bold text-xs">AI</span>
+              </div>
+              <div className="bg-white/80 backdrop-blur-sm text-gray-800 px-4 py-3 rounded-2xl rounded-bl-sm border border-gray-100 card-shadow">
+                <div className="flex items-center space-x-1">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"></div>
+                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                  <span className="text-sm text-gray-600 ml-2">正在思考中...</span>
+                </div>
+              </div>
             </div>
           </div>
         )}
         <div ref={messagesEndRef} />
       </div>
 
-      <form onSubmit={handleSubmit} className="p-4 border-t">
-        <div className="flex space-x-2">
+      <form onSubmit={handleSubmit} className="p-4 border-t border-gray-100/50 bg-white/30 backdrop-blur-sm rounded-b-xl">
+        <div className="flex space-x-3">
           <Input
             value={inputMessage}
             onChange={(e) => setInputMessage(e.target.value)}
             placeholder="输入你的问题..."
             disabled={loading}
-            className="flex-1"
+            className="flex-1 bg-white/80 backdrop-blur-sm border-gray-200 focus:border-blue-400 focus:ring-blue-400/20 rounded-xl"
           />
-          <Button type="submit" disabled={loading || !inputMessage.trim()}>
+          <Button 
+            type="submit" 
+            disabled={loading || !inputMessage.trim()}
+            className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 rounded-xl px-4 py-2 disabled:opacity-50"
+          >
             <Send className="w-4 h-4" />
           </Button>
+        </div>
+        <div className="flex items-center justify-between mt-2 text-xs text-gray-500">
+          <span>按 Enter 发送，Shift + Enter 换行</span>
+          <span className="flex items-center space-x-1">
+            <div className="w-1.5 h-1.5 bg-green-400 rounded-full"></div>
+            <span>AI 助手已就绪</span>
+          </span>
         </div>
       </form>
     </div>

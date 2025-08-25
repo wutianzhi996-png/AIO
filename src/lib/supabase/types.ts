@@ -2,7 +2,7 @@ export interface OKR {
   id: string
   user_id: string
   objective: string
-  key_results: { text: string }[]
+  key_results: { text: string; completed?: boolean }[]
   created_at: string
 }
 
