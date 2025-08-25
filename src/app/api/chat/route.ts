@@ -9,12 +9,17 @@ const openai = new OpenAI({
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('Chat API called')
     const { message, sessionId } = await request.json()
+    console.log('Message:', message)
+    console.log('SessionId:', sessionId)
     
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
+    console.log('User:', user ? 'authenticated' : 'not authenticated')
     
     if (!user) {
+      console.log('User not authenticated')
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -63,7 +68,7 @@ export async function POST(request: NextRequest) {
 任务要具体可执行，与OKR直接相关。`
 
         const completion = await openai.chat.completions.create({
-          model: 'grok-beta',
+          model: 'grok-2-1212',
           messages: [{ role: 'user', content: taskPrompt }],
           temperature: 0.7,
         })
@@ -74,16 +79,22 @@ export async function POST(request: NextRequest) {
       }
     } else {
       // Direct chat with Grok
-      const completion = await openai.chat.completions.create({
-        model: 'grok-beta',
-        messages: [
-          { role: 'system', content: '你是一位专业的学习助手。请用中文回答用户的问题，语言要清晰易懂，提供实用的学习建议和帮助。' },
-          { role: 'user', content: message }
-        ],
-        temperature: 0.7,
-      })
-
-      response = completion.choices[0].message.content || '抱歉，我无法理解您的问题。'
+      console.log('Making Grok API call...')
+      try {
+        const completion = await openai.chat.completions.create({
+          model: 'grok-2-1212',
+          messages: [
+            { role: 'system', content: '你是一位专业的学习助手。请用中文回答用户的问题，语言要清晰易懂，提供实用的学习建议和帮助。' },
+            { role: 'user', content: message }
+          ],
+          temperature: 0.7,
+        })
+        console.log('Grok API response received')
+        response = completion.choices[0].message.content || '抱歉，我无法理解您的问题。'
+      } catch (grokError) {
+        console.error('Grok API error:', grokError)
+        response = `Grok API 调用失败: ${grokError.message || 'Unknown error'}`
+      }
     }
 
     // Save assistant response (optional - continue even if it fails)
@@ -99,9 +110,14 @@ export async function POST(request: NextRequest) {
       console.log('Failed to save assistant response to database:', error)
     }
 
+    console.log('Returning response:', response)
     return NextResponse.json({ response })
   } catch (error) {
     console.error('Chat API error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    console.error('Error stack:', error.stack)
+    return NextResponse.json({ 
+      error: 'Internal server error',
+      details: error.message 
+    }, { status: 500 })
   }
 }

@@ -70,10 +70,16 @@ const ChatInterface = forwardRef<ChatInterfaceRef>((props, ref) => {
       })
 
       if (!response.ok) {
-        throw new Error('Failed to get response')
+        const errorData = await response.json()
+        console.error('API Error Response:', errorData)
+        throw new Error(`HTTP ${response.status}: ${errorData.error || 'Failed to get response'}`)
       }
 
-      const { response: assistantResponse } = await response.json()
+      const { response: assistantResponse, error: apiError } = await response.json()
+      
+      if (apiError) {
+        throw new Error(`API Error: ${apiError}`)
+      }
 
       // Add assistant response to UI
       const newAssistantMessage: ChatMessage = {
@@ -87,12 +93,15 @@ const ChatInterface = forwardRef<ChatInterfaceRef>((props, ref) => {
 
     } catch (error) {
       console.error('Chat error:', error)
-      // Add error message to UI
+      // Add error message to UI with more details
       const errorMessage: ChatMessage = {
         id: Date.now() + 1,
         user_id: '',
         session_id: sessionId,
-        message: { role: 'assistant', content: '抱歉，我现在无法回应。请稍后再试。' },
+        message: { 
+          role: 'assistant', 
+          content: `抱歉，我现在无法回应。错误信息：${error.message || error.toString()}\n\n请检查网络连接或稍后再试。` 
+        },
         created_at: new Date().toISOString()
       }
       setMessages(prev => [...prev, errorMessage])
