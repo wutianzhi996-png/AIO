@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ChatMessage } from '@/lib/supabase/types'
@@ -14,24 +14,24 @@ export default function ChatInterface() {
   const [sessionId] = useState(() => crypto.randomUUID())
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  useEffect(() => {
-    loadChatHistory()
-  }, [])
-
-  useEffect(() => {
-    scrollToBottom()
-  }, [messages])
-
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
 
-  const loadChatHistory = async () => {
+  const loadChatHistory = useCallback(async () => {
     const { data, error } = await supabaseService.getChatHistory(sessionId)
     if (!error && data) {
       setMessages(data)
     }
-  }
+  }, [sessionId])
+
+  useEffect(() => {
+    loadChatHistory()
+  }, [loadChatHistory])
+
+  useEffect(() => {
+    scrollToBottom()
+  }, [messages])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -103,7 +103,7 @@ export default function ChatInterface() {
         {messages.length === 0 ? (
           <div className="text-center text-gray-500 py-8">
             <p>你好！我是你的学习助手。</p>
-            <p>你可以问我学习相关的问题，或者问"今天我该做什么？"获取任务建议。</p>
+            <p>你可以问我学习相关的问题，或者问&quot;今天我该做什么？&quot;获取任务建议。</p>
           </div>
         ) : (
           messages.map((msg) => (

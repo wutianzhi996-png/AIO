@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import ChatInterface from '@/components/ChatInterface'
@@ -8,20 +8,17 @@ import OKRForm from '@/components/OKRForm'
 import OKRDisplay from '@/components/OKRDisplay'
 import { supabaseService } from '@/lib/services/supabase-service'
 import { OKR } from '@/lib/supabase/types'
+import { User } from '@supabase/supabase-js'
 import { LogOut, Plus } from 'lucide-react'
 
 export default function Dashboard() {
-  const [user, setUser] = useState<any>(null)
+  const [user, setUser] = useState<User | null>(null)
   const [okrs, setOKRs] = useState<OKR[]>([])
   const [showOKRForm, setShowOKRForm] = useState(false)
   const [loading, setLoading] = useState(true)
   const router = useRouter()
 
-  useEffect(() => {
-    loadUserData()
-  }, [])
-
-  const loadUserData = async () => {
+  const loadUserData = useCallback(async () => {
     const { user: currentUser } = await supabaseService.getCurrentUser()
     
     if (!currentUser) {
@@ -37,7 +34,11 @@ export default function Dashboard() {
     }
     
     setLoading(false)
-  }
+  }, [router])
+
+  useEffect(() => {
+    loadUserData()
+  }, [loadUserData])
 
   const handleSignOut = async () => {
     await supabaseService.signOut()
@@ -117,7 +118,7 @@ export default function Dashboard() {
             <div className="bg-white p-4 rounded-lg shadow-md">
               <h3 className="font-medium mb-3">快速开始</h3>
               <div className="space-y-2 text-sm text-gray-600">
-                <p>💡 问我"今天我该做什么？"获取任务建议</p>
+                <p>💡 问我&quot;今天我该做什么？&quot;获取任务建议</p>
                 <p>📚 遇到学习问题时随时向我提问</p>
                 <p>🎯 完成任务后记得更新你的 OKR</p>
               </div>

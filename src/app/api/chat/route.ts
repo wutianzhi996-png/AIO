@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
   try {
     const { message, sessionId } = await request.json()
     
-    const supabase = createClient()
+    const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     
     if (!user) {
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
         const taskPrompt = `基于用户的OKR目标，为今天生成3个具体的任务建议。
 
 目标(O): ${userOKR.objective}
-关键结果(KR): ${userOKR.key_results.map((kr: any, i: number) => `${i + 1}. ${kr.text}`).join('\n')}
+关键结果(KR): ${userOKR.key_results.map((kr: { text: string }, i: number) => `${i + 1}. ${kr.text}`).join('\n')}
 
 请生成今日任务，格式如下：
 1. [具体任务1]
@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
 
         let context = ''
         if (knowledgeChunks && knowledgeChunks.length > 0) {
-          context = knowledgeChunks.map((chunk: any) => chunk.content).join('\n\n')
+          context = knowledgeChunks.map((chunk: { content: string }) => chunk.content).join('\n\n')
         }
 
         const systemPrompt = context 

@@ -30,7 +30,7 @@ class SupabaseService {
     return { user, error }
   }
 
-  async createOKR(objective: string, keyResults: string[]): Promise<{ data: OKR | null, error: any }> {
+  async createOKR(objective: string, keyResults: string[]): Promise<{ data: OKR | null, error: string | null }> {
     const { data: { user } } = await this.supabase.auth.getUser()
     if (!user) return { data: null, error: 'Not authenticated' }
 
@@ -44,10 +44,10 @@ class SupabaseService {
       .select()
       .single()
 
-    return { data, error }
+    return { data, error: error?.message || null }
   }
 
-  async getUserOKRs(): Promise<{ data: OKR[] | null, error: any }> {
+  async getUserOKRs(): Promise<{ data: OKR[] | null, error: string | null }> {
     const { data: { user } } = await this.supabase.auth.getUser()
     if (!user) return { data: null, error: 'Not authenticated' }
 
@@ -57,7 +57,7 @@ class SupabaseService {
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
 
-    return { data, error }
+    return { data, error: error?.message || null }
   }
 
   async saveChatMessage(sessionId: string, role: 'user' | 'assistant', content: string) {
@@ -75,7 +75,7 @@ class SupabaseService {
     return { data, error }
   }
 
-  async getChatHistory(sessionId?: string): Promise<{ data: ChatMessage[] | null, error: any }> {
+  async getChatHistory(sessionId?: string): Promise<{ data: ChatMessage[] | null, error: string | null }> {
     const { data: { user } } = await this.supabase.auth.getUser()
     if (!user) return { data: null, error: 'Not authenticated' }
 
@@ -90,7 +90,7 @@ class SupabaseService {
 
     const { data, error } = await query.order('created_at', { ascending: true })
 
-    return { data, error }
+    return { data, error: error?.message || null }
   }
 
   async searchKnowledge(query: string, limit = 5) {

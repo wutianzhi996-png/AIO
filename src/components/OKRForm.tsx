@@ -13,6 +13,7 @@ export default function OKRForm({ onSuccess }: OKRFormProps) {
   const [objective, setObjective] = useState('')
   const [keyResults, setKeyResults] = useState(['', '', ''])
   const [loading, setLoading] = useState(false)
+  const [message, setMessage] = useState('')
 
   const handleKeyResultChange = (index: number, value: string) => {
     const newKeyResults = [...keyResults]
@@ -23,26 +24,27 @@ export default function OKRForm({ onSuccess }: OKRFormProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
+    setMessage('')
 
     try {
       const validKeyResults = keyResults.filter(kr => kr.trim() !== '')
       
       if (!objective.trim() || validKeyResults.length === 0) {
-        alert('请填写目标和至少一个关键结果')
+        setMessage('请填写目标和至少一个关键结果')
         return
       }
 
-      const { error } = await supabaseService.createOKR(objective.trim(), validKeyResults)
+      const { data, error } = await supabaseService.createOKR(objective.trim(), validKeyResults)
       
-      if (error) {
-        alert('创建OKR失败：' + error.message)
-      } else {
+      if (data) {
+        onSuccess()
         setObjective('')
         setKeyResults(['', '', ''])
-        onSuccess()
+      } else {
+        setMessage(error || '创建失败，请重试')
       }
-    } catch (error) {
-      alert('创建OKR失败，请重试')
+    } catch {
+      setMessage('操作失败，请重试')
     } finally {
       setLoading(false)
     }
@@ -79,6 +81,8 @@ export default function OKRForm({ onSuccess }: OKRFormProps) {
             </div>
           ))}
         </div>
+
+        {message && <p className="text-red-500 text-sm">{message}</p>}
 
         <Button type="submit" disabled={loading} className="w-full">
           {loading ? '创建中...' : '创建 OKR'}

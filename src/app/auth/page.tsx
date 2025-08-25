@@ -35,8 +35,8 @@ export default function AuthPage() {
           setMessage('注册成功！请检查邮箱确认注册。')
         }
       }
-    } catch (error) {
-      setMessage('操作失败，请重试。')
+    } catch {
+      setMessage('操作失败，请重试')
     } finally {
       setLoading(false)
     }
