@@ -13,12 +13,50 @@ export default function OKRForm({ onSuccess }: OKRFormProps) {
   const [objective, setObjective] = useState('')
   const [keyResults, setKeyResults] = useState(['', '', ''])
   const [loading, setLoading] = useState(false)
+  const [aiGenerating, setAiGenerating] = useState(false)
   const [message, setMessage] = useState('')
 
   const handleKeyResultChange = (index: number, value: string) => {
     const newKeyResults = [...keyResults]
     newKeyResults[index] = value
     setKeyResults(newKeyResults)
+  }
+
+  const generateKeyResults = async () => {
+    if (!objective.trim()) {
+      setMessage('请先输入学习目标')
+      return
+    }
+
+    setAiGenerating(true)
+    setMessage('')
+
+    try {
+      const response = await fetch('/api/generate-okr', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ objective: objective.trim() })
+      })
+
+      if (!response.ok) {
+        throw new Error('生成失败')
+      }
+
+      const { keyResults: generatedKeyResults } = await response.json()
+      
+      // 将生成的关键结果填入表单，最多3个
+      const newKeyResults = ['', '', '']
+      generatedKeyResults.slice(0, 3).forEach((kr: string, index: number) => {
+        newKeyResults[index] = kr
+      })
+      setKeyResults(newKeyResults)
+      setMessage('✅ AI已为您生成关键结果，您可以根据需要修改')
+    } catch (error) {
+      console.error('Generate key results error:', error)
+      setMessage('AI生成失败，请稍后重试')
+    } finally {
+      setAiGenerating(false)
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -67,14 +105,33 @@ export default function OKRForm({ onSuccess }: OKRFormProps) {
               目标 (Objective)
             </label>
           </div>
-          <Input
-            value={objective}
-            onChange={(e) => setObjective(e.target.value)}
-            placeholder="例如：本周掌握数据结构基础知识"
-            required
-            className="bg-white/80 backdrop-blur-sm border-gray-200 focus:border-blue-400 focus:ring-blue-400/20 rounded-xl"
-          />
-          <p className="text-xs text-gray-500 ml-2">设定一个明确、可衡量的学习目标</p>
+          <div className="flex space-x-2">
+            <Input
+              value={objective}
+              onChange={(e) => setObjective(e.target.value)}
+              placeholder="例如：本周掌握数据结构基础知识"
+              required
+              className="flex-1 bg-white/80 backdrop-blur-sm border-gray-200 focus:border-blue-400 focus:ring-blue-400/20 rounded-xl"
+            />
+            <Button
+              type="button"
+              onClick={generateKeyResults}
+              disabled={!objective.trim() || aiGenerating || loading}
+              className="px-4 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 rounded-xl text-sm disabled:opacity-50"
+            >
+              {aiGenerating ? (
+                <span className="flex items-center">
+                  <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin mr-1"></div>
+                  生成中
+                </span>
+              ) : (
+                <span className="flex items-center">
+                  ✨ AI生成
+                </span>
+              )}
+            </Button>
+          </div>
+          <p className="text-xs text-gray-500 ml-2">设定一个明确、可衡量的学习目标，然后点击AI生成自动创建关键结果</p>
         </div>
 
         <div className="space-y-3">
@@ -111,9 +168,17 @@ export default function OKRForm({ onSuccess }: OKRFormProps) {
         </div>
 
         {message && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-3 animate-fade-in">
-            <p className="text-red-600 text-sm flex items-center">
-              <span className="mr-2">⚠️</span>
+          <div className={`border rounded-xl p-3 animate-fade-in ${
+            message.startsWith('✅') 
+              ? 'bg-green-50 border-green-200' 
+              : 'bg-red-50 border-red-200'
+          }`}>
+            <p className={`text-sm flex items-center ${
+              message.startsWith('✅') 
+                ? 'text-green-600' 
+                : 'text-red-600'
+            }`}>
+              {!message.startsWith('✅') && <span className="mr-2">⚠️</span>}
               {message}
             </p>
           </div>
