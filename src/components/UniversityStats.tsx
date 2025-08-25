@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts'
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
 import { supabaseService } from '@/lib/services/supabase-service'
+import { UserProfile } from '@/lib/supabase/types'
 import ProfileSetup from './ProfileSetup'
 import { Users, TrendingUp } from 'lucide-react'
 
@@ -24,7 +25,15 @@ const COLORS = [
   '#84CC16', // lime-500
 ]
 
-const CustomTooltip = ({ active, payload, label }: any) => {
+interface TooltipProps {
+  active?: boolean
+  payload?: Array<{
+    payload: MajorStat
+  }>
+  label?: string
+}
+
+const CustomTooltip = ({ active, payload }: TooltipProps) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload
     return (
@@ -41,7 +50,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
 export default function UniversityStats() {
   const [stats, setStats] = useState<MajorStat[]>([])
-  const [userProfile, setUserProfile] = useState<any>(null)
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showProfileSetup, setShowProfileSetup] = useState(false)

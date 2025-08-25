@@ -33,7 +33,7 @@ export default function ProfileSetup({ onComplete }: ProfileSetupProps) {
 
     try {
       // 创建用户档案
-      const { data, error } = await supabaseService.createUserProfile({
+      const { error } = await supabaseService.createUserProfile({
         province,
         university,
         major
