@@ -194,6 +194,29 @@ class SupabaseService {
     return { data, error: error?.message || null }
   }
 
+  async getRecentUserMessages(limit: number = 10): Promise<{ data: string[] | null, error: string | null }> {
+    const { data: { user } } = await this.supabase.auth.getUser()
+    if (!user) return { data: null, error: 'Not authenticated' }
+
+    const { data, error } = await this.supabase
+      .from('chat_history')
+      .select('message')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(limit * 2) // Get more to filter user messages
+
+    if (error) return { data: null, error: error.message }
+
+    // Filter for user messages only
+    const userMessages = (data || [])
+      .filter(item => item.message?.role === 'user')
+      .map(item => item.message?.content || '')
+      .filter(content => content.length > 0)
+      .slice(0, limit)
+
+    return { data: userMessages, error: null }
+  }
+
   async searchKnowledge(query: string, limit = 5) {
     const { data, error } = await this.supabase.rpc('match_documents', {
       query_embedding: await this.getEmbedding(query),

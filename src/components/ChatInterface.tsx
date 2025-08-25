@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import QuestionSuggestions from '@/components/QuestionSuggestions'
 import { ChatMessage } from '@/lib/supabase/types'
 import { supabaseService } from '@/lib/services/supabase-service'
 import { Send } from 'lucide-react'
@@ -16,6 +17,7 @@ const ChatInterface = forwardRef<ChatInterfaceRef>((props, ref) => {
   const [inputMessage, setInputMessage] = useState('')
   const [loading, setLoading] = useState(false)
   const [sessionId] = useState(() => crypto.randomUUID())
+  const [suggestionRefreshTrigger, setSuggestionRefreshTrigger] = useState(0)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const scrollToBottom = () => {
@@ -79,6 +81,9 @@ const ChatInterface = forwardRef<ChatInterfaceRef>((props, ref) => {
 
       // Reload chat history to get the latest messages from database
       await loadChatHistory()
+      
+      // Refresh suggestions after successful message
+      setSuggestionRefreshTrigger(prev => prev + 1)
 
     } catch (error) {
       console.error('Chat error:', error)
@@ -135,13 +140,22 @@ const ChatInterface = forwardRef<ChatInterfaceRef>((props, ref) => {
               我可以帮助你制定学习计划、回答学习问题、提供任务建议等。让我们开始学习之旅吧！
             </p>
             <div className="grid grid-cols-1 gap-3 max-w-sm mx-auto">
-              <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-3 rounded-lg border border-blue-100">
+              <div 
+                className="bg-gradient-to-r from-blue-50 to-purple-50 p-3 rounded-lg border border-blue-100 cursor-pointer hover:bg-gradient-to-r hover:from-blue-100 hover:to-purple-100 hover:border-blue-200 transition-all duration-200 hover:scale-105"
+                onClick={() => setInputMessage('今天我该做什么？')}
+              >
                 <p className="text-sm text-gray-700">💡 &quot;今天我该做什么？&quot;</p>
               </div>
-              <div className="bg-gradient-to-r from-green-50 to-blue-50 p-3 rounded-lg border border-green-100">
+              <div 
+                className="bg-gradient-to-r from-green-50 to-blue-50 p-3 rounded-lg border border-green-100 cursor-pointer hover:bg-gradient-to-r hover:from-green-100 hover:to-blue-100 hover:border-green-200 transition-all duration-200 hover:scale-105"
+                onClick={() => setInputMessage('帮我制定学习计划')}
+              >
                 <p className="text-sm text-gray-700">📚 &quot;帮我制定学习计划&quot;</p>
               </div>
-              <div className="bg-gradient-to-r from-purple-50 to-pink-50 p-3 rounded-lg border border-purple-100">
+              <div 
+                className="bg-gradient-to-r from-purple-50 to-pink-50 p-3 rounded-lg border border-purple-100 cursor-pointer hover:bg-gradient-to-r hover:from-purple-100 hover:to-pink-100 hover:border-purple-200 transition-all duration-200 hover:scale-105"
+                onClick={() => setInputMessage('我的学习进度如何？')}
+              >
                 <p className="text-sm text-gray-700">🎯 &quot;我的学习进度如何？&quot;</p>
               </div>
             </div>
@@ -204,6 +218,12 @@ const ChatInterface = forwardRef<ChatInterfaceRef>((props, ref) => {
       </div>
 
       <form onSubmit={handleSubmit} className="p-4 border-t border-gray-100/50 bg-white/30 backdrop-blur-sm rounded-b-xl">
+        {messages.length > 0 && (
+          <QuestionSuggestions 
+            onSuggestionClick={(suggestion) => sendMessage(suggestion)}
+            refreshTrigger={suggestionRefreshTrigger}
+          />
+        )}
         <div className="flex space-x-3">
           <Input
             value={inputMessage}
