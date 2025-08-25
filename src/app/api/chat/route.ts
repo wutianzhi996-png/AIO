@@ -23,17 +23,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Save user message (optional - continue even if it fails)
+    // Save user message - ensure it's saved
     try {
-      await supabase
+      const { error: userMsgError } = await supabase
         .from('chat_history')
         .insert({
           user_id: user.id,
           session_id: sessionId,
           message: { role: 'user', content: message }
         })
+      
+      if (userMsgError) {
+        console.error('Error saving user message:', userMsgError)
+      } else {
+        console.log('User message saved successfully')
+      }
     } catch (error) {
-      console.log('Failed to save user message to database:', error)
+      console.error('Failed to save user message to database:', error)
     }
 
     let response: string
@@ -80,6 +86,7 @@ export async function POST(request: NextRequest) {
     } else {
       // Direct chat with Grok
       console.log('Making Grok API call...')
+      console.log('API Key prefix:', process.env.XAI_API_KEY?.substring(0, 10) + '...')
       try {
         const completion = await openai.chat.completions.create({
           model: 'grok-2-1212',
@@ -97,17 +104,23 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Save assistant response (optional - continue even if it fails)
+    // Save assistant response - ensure it's saved
     try {
-      await supabase
+      const { error: assistantMsgError } = await supabase
         .from('chat_history')
         .insert({
           user_id: user.id,
           session_id: sessionId,
           message: { role: 'assistant', content: response }
         })
+      
+      if (assistantMsgError) {
+        console.error('Error saving assistant response:', assistantMsgError)
+      } else {
+        console.log('Assistant response saved successfully')
+      }
     } catch (error) {
-      console.log('Failed to save assistant response to database:', error)
+      console.error('Failed to save assistant response to database:', error)
     }
 
     console.log('Returning response:', response)

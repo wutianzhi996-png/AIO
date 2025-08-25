@@ -24,12 +24,18 @@ const ChatInterface = forwardRef<ChatInterfaceRef>((props, ref) => {
 
   const loadChatHistory = useCallback(async () => {
     try {
+      console.log('Loading chat history for session:', sessionId)
       const { data, error } = await supabaseService.getChatHistory(sessionId)
-      if (!error && data) {
+      if (!error && data && data.length > 0) {
+        console.log('Chat history loaded:', data.length, 'messages')
         setMessages(data)
+      } else if (error) {
+        console.error('Error loading chat history:', error)
+      } else {
+        console.log('No chat history found, starting with empty messages')
       }
     } catch (error) {
-      console.log('Failed to load chat history:', error)
+      console.error('Failed to load chat history:', error)
       // Continue without chat history - start with empty messages
     }
   }, [sessionId])
@@ -49,16 +55,6 @@ const ChatInterface = forwardRef<ChatInterfaceRef>((props, ref) => {
     setInputMessage('')
     setLoading(true)
 
-    // Add user message to UI immediately
-    const newUserMessage: ChatMessage = {
-      id: Date.now(),
-      user_id: '',
-      session_id: sessionId,
-      message: { role: 'user', content: userMessage },
-      created_at: new Date().toISOString()
-    }
-    setMessages(prev => [...prev, newUserMessage])
-
     try {
       const response = await fetch('/api/chat', {
         method: 'POST',
@@ -75,21 +71,14 @@ const ChatInterface = forwardRef<ChatInterfaceRef>((props, ref) => {
         throw new Error(`HTTP ${response.status}: ${errorData.error || 'Failed to get response'}`)
       }
 
-      const { response: assistantResponse, error: apiError } = await response.json()
+      const { error: apiError } = await response.json()
       
       if (apiError) {
         throw new Error(`API Error: ${apiError}`)
       }
 
-      // Add assistant response to UI
-      const newAssistantMessage: ChatMessage = {
-        id: Date.now() + 1,
-        user_id: '',
-        session_id: sessionId,
-        message: { role: 'assistant', content: assistantResponse },
-        created_at: new Date().toISOString()
-      }
-      setMessages(prev => [...prev, newAssistantMessage])
+      // Reload chat history to get the latest messages from database
+      await loadChatHistory()
 
     } catch (error) {
       console.error('Chat error:', error)
@@ -108,7 +97,7 @@ const ChatInterface = forwardRef<ChatInterfaceRef>((props, ref) => {
     } finally {
       setLoading(false)
     }
-  }, [loading, sessionId])
+  }, [loading, sessionId, loadChatHistory])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
