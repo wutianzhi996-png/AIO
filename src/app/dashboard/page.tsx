@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import ChatInterface, { ChatInterfaceRef } from '@/components/ChatInterface'
 import OKRForm from '@/components/OKRForm'
 import OKRDisplay from '@/components/OKRDisplay'
+import UniversityStats from '@/components/UniversityStats'
 import { supabaseService } from '@/lib/services/supabase-service'
 import { OKR } from '@/lib/supabase/types'
 import { User } from '@supabase/supabase-js'
@@ -198,6 +199,9 @@ export default function Dashboard() {
                 </div>
               </div>
             </div>
+
+            {/* 数据统计模块 */}
+            <UniversityStats />
           </div>
 
           {/* Right Main Area - Chat Interface */}
