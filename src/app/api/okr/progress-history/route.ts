@@ -30,7 +30,17 @@ export async function GET(request: NextRequest) {
 
     if (historyError) {
       console.error('Error fetching progress history:', historyError)
-      return NextResponse.json({ error: 'Failed to fetch progress history' }, { status: 500 })
+
+      // 检查是否是表不存在的错误
+      if (historyError.message?.includes('relation "progress_history" does not exist')) {
+        return NextResponse.json({
+          error: '进度历史表尚未创建，请联系管理员执行数据库迁移脚本'
+        }, { status: 500 })
+      }
+
+      return NextResponse.json({
+        error: `查询历史记录失败: ${historyError.message}`
+      }, { status: 500 })
     }
 
     return NextResponse.json({ 

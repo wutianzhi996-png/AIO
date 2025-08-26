@@ -31,17 +31,25 @@ export default function ProgressSubmissionModal({
   const [error, setError] = useState('')
   const [progressHistory, setProgressHistory] = useState<ProgressHistory[]>([])
   const [historyLoading, setHistoryLoading] = useState(false)
+  const [historyError, setHistoryError] = useState<string | null>(null)
 
   const loadProgressHistory = useCallback(async () => {
     setHistoryLoading(true)
+    setHistoryError(null)
     try {
+      console.log('Loading progress history for:', { okrId, keyResultIndex })
       const { data, error } = await supabaseService.getProgressHistory(okrId, keyResultIndex)
-      if (data) {
-        setProgressHistory(data)
-      } else if (error) {
+      console.log('Progress history response:', { data, error })
+
+      if (error) {
+        setHistoryError(error)
         console.error('Failed to load progress history:', error)
+      } else {
+        setProgressHistory(data || [])
       }
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      setHistoryError(errorMessage)
       console.error('Error loading progress history:', error)
     } finally {
       setHistoryLoading(false)
@@ -178,21 +186,33 @@ export default function ProgressSubmissionModal({
           </div>
 
           {/* Progress History */}
-          <div className="space-y-3">
-            <div className="flex items-center space-x-2">
-              <History className="w-4 h-4 text-gray-500" />
-              <span className="text-sm font-medium text-gray-700">提交历史</span>
-              {progressHistory.length > 0 && (
-                <span className="text-xs text-gray-500">({progressHistory.length} 条记录)</span>
-              )}
-            </div>
+          {!historyError?.includes('进度历史表尚未创建') && (
+            <div className="space-y-3">
+              <div className="flex items-center space-x-2">
+                <History className="w-4 h-4 text-gray-500" />
+                <span className="text-sm font-medium text-gray-700">提交历史</span>
+                {progressHistory.length > 0 && (
+                  <span className="text-xs text-gray-500">({progressHistory.length} 条记录)</span>
+                )}
+              </div>
 
-            <div className="border border-gray-200 rounded-lg bg-gray-50/50">
+              <div className="border border-gray-200 rounded-lg bg-gray-50/50">
               <div className="max-h-40 overflow-y-auto">
                 {historyLoading ? (
                   <div className="p-4 text-center">
                     <div className="w-5 h-5 border-2 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
                     <span className="text-sm text-gray-500">加载历史记录...</span>
+                  </div>
+                ) : historyError ? (
+                  <div className="p-4 text-center">
+                    <div className="text-sm text-red-600 mb-2">加载失败</div>
+                    <div className="text-xs text-gray-500 mb-3">{historyError}</div>
+                    <button
+                      onClick={loadProgressHistory}
+                      className="text-xs text-blue-600 hover:text-blue-700 underline"
+                    >
+                      重试
+                    </button>
                   </div>
                 ) : progressHistory.length > 0 ? (
                   <div className="divide-y divide-gray-200">
@@ -254,12 +274,6 @@ export default function ProgressSubmissionModal({
               </div>
             </div>
           </div>
-
-          {/* Last Updated Info */}
-          {keyResult.last_updated && (
-            <div className="text-xs text-gray-500 bg-gray-50 p-3 rounded-lg">
-              上次更新：{new Date(keyResult.last_updated).toLocaleString('zh-CN')}
-            </div>
           )}
 
           {/* Current Progress Section */}
