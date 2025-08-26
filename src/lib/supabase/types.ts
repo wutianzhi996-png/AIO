@@ -1,8 +1,16 @@
+export interface KeyResult {
+  text: string
+  completed?: boolean
+  progress?: number // 进度百分比 (0-100)
+  progress_description?: string // 进度描述
+  last_updated?: string // 最后更新时间
+}
+
 export interface OKR {
   id: string
   user_id: string
   objective: string
-  key_results: { text: string; completed?: boolean }[]
+  key_results: KeyResult[]
   created_at: string
 }
 

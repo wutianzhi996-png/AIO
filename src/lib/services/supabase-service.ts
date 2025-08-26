@@ -161,6 +161,68 @@ class SupabaseService {
     return { error: error?.message || null }
   }
 
+  async updateKeyResultProgress(
+    okrId: string,
+    keyResultIndex: number,
+    progress: number,
+    progressDescription?: string
+  ): Promise<{ data: OKR | null, error: string | null }> {
+    try {
+      const response = await fetch('/api/okr/update-progress', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          okrId,
+          keyResultIndex,
+          progress,
+          progressDescription
+        })
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        return { data: null, error: result.error || 'Failed to update progress' }
+      }
+
+      return { data: result.data, error: null }
+    } catch (error) {
+      console.error('Error updating key result progress:', error)
+      return { data: null, error: 'Network error' }
+    }
+  }
+
+  async batchUpdateKeyResultProgress(
+    okrId: string,
+    progressUpdates: Array<{
+      keyResultIndex: number
+      progress: number
+      progressDescription?: string
+    }>
+  ): Promise<{ data: OKR | null, error: string | null }> {
+    try {
+      const response = await fetch('/api/okr/update-progress', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          okrId,
+          progressUpdates
+        })
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        return { data: null, error: result.error || 'Failed to update progress' }
+      }
+
+      return { data: result.data, error: null }
+    } catch (error) {
+      console.error('Error batch updating key result progress:', error)
+      return { data: null, error: 'Network error' }
+    }
+  }
+
   async saveChatMessage(sessionId: string, role: 'user' | 'assistant', content: string) {
     const { data: { user } } = await this.supabase.auth.getUser()
     if (!user) return { error: 'Not authenticated' }

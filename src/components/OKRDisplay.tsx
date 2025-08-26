@@ -1,9 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import { OKR } from '@/lib/supabase/types'
+import { OKR, KeyResult } from '@/lib/supabase/types'
 import { supabaseService } from '@/lib/services/supabase-service'
-import { Trash2 } from 'lucide-react'
+import { Trash2, TrendingUp, Clock } from 'lucide-react'
+import ProgressSubmissionModal from './ProgressSubmissionModal'
 
 interface OKRDisplayProps {
   okr: OKR
@@ -12,13 +13,19 @@ interface OKRDisplayProps {
 
 export default function OKRDisplay({ okr, onDelete }: OKRDisplayProps) {
   const [deleting, setDeleting] = useState(false)
-  const completedKRs = okr.key_results?.filter(kr => kr.completed).length || 0;
-  const totalKRs = okr.key_results?.length || 0;
-  const progressPercentage = totalKRs > 0 ? Math.round((completedKRs / totalKRs) * 100) : 0;
+  const [progressModalOpen, setProgressModalOpen] = useState(false)
+  const [selectedKeyResult, setSelectedKeyResult] = useState<{ keyResult: KeyResult; index: number } | null>(null)
+
+  // 计算整体进度 - 基于实际进度百分比而不是完成状态
+  const totalProgress = okr.key_results?.reduce((sum, kr) => sum + (kr.progress || 0), 0) || 0
+  const totalKRs = okr.key_results?.length || 0
+  const progressPercentage = totalKRs > 0 ? Math.round(totalProgress / totalKRs) : 0
+
+  const completedKRs = okr.key_results?.filter(kr => kr.completed || (kr.progress && kr.progress >= 100)).length || 0
 
   const handleDelete = async () => {
     if (!confirm('确定要删除这个学习目标吗？此操作无法撤销。')) return
-    
+
     setDeleting(true)
     try {
       const { error } = await supabaseService.deleteOKR(okr.id)
@@ -31,6 +38,31 @@ export default function OKRDisplay({ okr, onDelete }: OKRDisplayProps) {
       alert('删除失败，请重试')
     } finally {
       setDeleting(false)
+    }
+  }
+
+  const handleProgressClick = (keyResult: KeyResult, index: number) => {
+    setSelectedKeyResult({ keyResult, index })
+    setProgressModalOpen(true)
+  }
+
+  const handleProgressSubmit = async (progress: number, description: string) => {
+    if (!selectedKeyResult) return
+
+    const { error } = await supabaseService.updateKeyResultProgress(
+      okr.id,
+      selectedKeyResult.index,
+      progress,
+      description
+    )
+
+    if (error) {
+      throw new Error(error)
+    }
+
+    // 刷新页面或触发重新加载
+    if (onDelete) {
+      onDelete() // 重用这个回调来触发父组件刷新
     }
   }
 
@@ -86,29 +118,94 @@ export default function OKRDisplay({ okr, onDelete }: OKRDisplayProps) {
                 {completedKRs}/{totalKRs}
               </span>
             </div>
-            <div className="space-y-2">
-              {okr.key_results.map((kr, index) => (
-                <div key={index} className="flex items-start space-x-2">
-                  <div className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-medium ${
-                    kr.completed 
-                      ? 'bg-gradient-to-r from-green-400 to-blue-500 text-white' 
-                      : 'bg-gray-100 text-gray-600'
-                  }`}>
-                    {kr.completed ? '✓' : index + 1}
+            <div className="space-y-3">
+              {okr.key_results.map((kr, index) => {
+                const progress = kr.progress || 0
+                const isCompleted = kr.completed || progress >= 100
+
+                return (
+                  <div key={index} className="group">
+                    <div className="flex items-start space-x-3">
+                      <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium ${
+                        isCompleted
+                          ? 'bg-gradient-to-r from-green-400 to-blue-500 text-white'
+                          : 'bg-gray-100 text-gray-600'
+                      }`}>
+                        {isCompleted ? '✓' : index + 1}
+                      </div>
+
+                      <div className="flex-1 space-y-2">
+                        <div className={`p-3 rounded-lg text-sm cursor-pointer transition-all hover:shadow-sm ${
+                          isCompleted
+                            ? 'bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 text-gray-700'
+                            : 'bg-gray-50 border border-gray-200 text-gray-800 hover:bg-gray-100'
+                        }`}
+                        onClick={() => handleProgressClick(kr, index)}
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <span className={isCompleted ? 'line-through' : ''}>{kr.text}</span>
+                            <button className="opacity-0 group-hover:opacity-100 p-1 hover:bg-white/50 rounded transition-all">
+                              <TrendingUp className="w-3 h-3 text-gray-500" />
+                            </button>
+                          </div>
+
+                          {/* Progress Bar */}
+                          <div className="flex items-center space-x-2">
+                            <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+                              <div
+                                className={`h-full transition-all duration-300 ${
+                                  progress >= 100 ? 'bg-gradient-to-r from-green-400 to-green-600' :
+                                  progress >= 75 ? 'bg-gradient-to-r from-blue-400 to-blue-600' :
+                                  progress >= 50 ? 'bg-gradient-to-r from-yellow-400 to-yellow-600' :
+                                  progress >= 25 ? 'bg-gradient-to-r from-orange-400 to-orange-600' :
+                                  'bg-gradient-to-r from-red-400 to-red-600'
+                                }`}
+                                style={{ width: `${progress}%` }}
+                              />
+                            </div>
+                            <span className="text-xs font-medium text-gray-600 min-w-[35px]">
+                              {progress}%
+                            </span>
+                          </div>
+
+                          {/* Progress Description and Last Updated */}
+                          {(kr.progress_description || kr.last_updated) && (
+                            <div className="mt-2 pt-2 border-t border-gray-200">
+                              {kr.progress_description && (
+                                <p className="text-xs text-gray-600 mb-1">{kr.progress_description}</p>
+                              )}
+                              {kr.last_updated && (
+                                <div className="flex items-center text-xs text-gray-500">
+                                  <Clock className="w-3 h-3 mr-1" />
+                                  {new Date(kr.last_updated).toLocaleString('zh-CN')}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <div className={`flex-1 p-2 rounded-lg text-xs ${
-                    kr.completed 
-                      ? 'bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 text-gray-700 line-through' 
-                      : 'bg-gray-50 border border-gray-200 text-gray-800'
-                  }`}>
-                    {kr.text}
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </div>
         )}
       </div>
+
+      {/* Progress Submission Modal */}
+      {selectedKeyResult && (
+        <ProgressSubmissionModal
+          isOpen={progressModalOpen}
+          onClose={() => {
+            setProgressModalOpen(false)
+            setSelectedKeyResult(null)
+          }}
+          keyResult={selectedKeyResult.keyResult}
+          keyResultIndex={selectedKeyResult.index}
+          onSubmit={handleProgressSubmit}
+        />
+      )}
     </div>
   )
 }
