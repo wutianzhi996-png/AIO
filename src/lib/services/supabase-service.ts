@@ -286,6 +286,30 @@ class SupabaseService {
     return { data: userMessages, error: null }
   }
 
+  async changePassword(currentPassword: string, newPassword: string): Promise<{ success: boolean, error: string | null }> {
+    try {
+      const response = await fetch('/api/auth/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          currentPassword,
+          newPassword
+        })
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        return { success: false, error: result.error || 'Password change failed' }
+      }
+
+      return { success: true, error: null }
+    } catch (error) {
+      console.error('Error changing password:', error)
+      return { success: false, error: 'Network error' }
+    }
+  }
+
   async searchKnowledge(query: string, limit = 5) {
     const { data, error } = await this.supabase.rpc('match_documents', {
       query_embedding: await this.getEmbedding(query),

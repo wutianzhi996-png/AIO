@@ -10,7 +10,8 @@ import UniversityStats from '@/components/UniversityStats'
 import { supabaseService } from '@/lib/services/supabase-service'
 import { OKR } from '@/lib/supabase/types'
 import { User } from '@supabase/supabase-js'
-import { LogOut, Plus } from 'lucide-react'
+import { Plus } from 'lucide-react'
+import UserProfileDropdown from '@/components/UserProfileDropdown'
 
 export default function Dashboard() {
   const [user, setUser] = useState<User | null>(null)
@@ -82,18 +83,7 @@ export default function Dashboard() {
               </h1>
             </div>
             <div className="flex items-center space-x-4">
-              <div className="hidden sm:block">
-                <span className="text-sm text-gray-600">
-                  欢迎回来，
-                </span>
-                <span className="text-sm font-medium text-gray-900 ml-1">
-                  {user?.email?.split('@')[0]}
-                </span>
-              </div>
-              <Button variant="ghost" onClick={handleSignOut} className="hover:bg-white/50">
-                <LogOut className="w-4 h-4 mr-2" />
-                退出
-              </Button>
+              <UserProfileDropdown user={user} onSignOut={handleSignOut} />
             </div>
           </div>
         </div>
