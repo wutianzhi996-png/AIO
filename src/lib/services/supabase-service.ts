@@ -2,7 +2,14 @@ import { createClient } from '@/lib/supabase/client'
 import { OKR, ChatMessage, UserProfile } from '@/lib/supabase/types'
 
 class SupabaseService {
-  private supabase = createClient()
+  private _supabase: ReturnType<typeof createClient> | null = null
+
+  private get supabase() {
+    if (!this._supabase) {
+      this._supabase = createClient()
+    }
+    return this._supabase
+  }
 
   async signUp(email: string, password: string, profile?: { province: string; university: string; major: string }) {
     const { data, error } = await this.supabase.auth.signUp({

@@ -2,10 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
 import { createClient } from '@/lib/supabase/server'
 
-const openai = new OpenAI({
-  apiKey: process.env.XAI_API_KEY,
-  baseURL: 'https://api.x.ai/v1',
-})
+function createOpenAIClient() {
+  return new OpenAI({
+    apiKey: process.env.XAI_API_KEY,
+    baseURL: 'https://api.x.ai/v1',
+  })
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -73,6 +75,7 @@ export async function POST(request: NextRequest) {
 
 任务要具体可执行，与OKR直接相关。`
 
+        const openai = createOpenAIClient()
         const completion = await openai.chat.completions.create({
           model: 'grok-2-1212',
           messages: [{ role: 'user', content: taskPrompt }],
@@ -88,6 +91,7 @@ export async function POST(request: NextRequest) {
       console.log('Making Grok API call...')
       console.log('API Key prefix:', process.env.XAI_API_KEY?.substring(0, 10) + '...')
       try {
+        const openai = createOpenAIClient()
         const completion = await openai.chat.completions.create({
           model: 'grok-2-1212',
           messages: [

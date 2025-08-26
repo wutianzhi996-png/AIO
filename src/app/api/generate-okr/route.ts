@@ -2,10 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
 import { createClient } from '@/lib/supabase/server'
 
-const openai = new OpenAI({
-  apiKey: process.env.XAI_API_KEY,
-  baseURL: 'https://api.x.ai/v1',
-})
+function createOpenAIClient() {
+  return new OpenAI({
+    apiKey: process.env.XAI_API_KEY,
+    baseURL: 'https://api.x.ai/v1',
+  })
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -44,6 +46,7 @@ export async function POST(request: NextRequest) {
 掌握xxx项具体技能`
 
     try {
+      const openai = createOpenAIClient()
       const completion = await openai.chat.completions.create({
         model: 'grok-2-1212',
         messages: [
