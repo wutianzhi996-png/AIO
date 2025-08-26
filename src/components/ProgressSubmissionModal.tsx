@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -31,15 +31,8 @@ export default function ProgressSubmissionModal({
   const [error, setError] = useState('')
   const [progressHistory, setProgressHistory] = useState<ProgressHistory[]>([])
   const [historyLoading, setHistoryLoading] = useState(false)
-  const [showHistory, setShowHistory] = useState(false)
 
-  useEffect(() => {
-    if (isOpen && showHistory && !historyLoading && progressHistory.length === 0) {
-      loadProgressHistory()
-    }
-  }, [isOpen, showHistory, historyLoading, progressHistory.length])
-
-  const loadProgressHistory = async () => {
+  const loadProgressHistory = useCallback(async () => {
     setHistoryLoading(true)
     try {
       const { data, error } = await supabaseService.getProgressHistory(okrId, keyResultIndex)
@@ -53,7 +46,13 @@ export default function ProgressSubmissionModal({
     } finally {
       setHistoryLoading(false)
     }
-  }
+  }, [okrId, keyResultIndex])
+
+  useEffect(() => {
+    if (isOpen && !historyLoading && progressHistory.length === 0) {
+      loadProgressHistory()
+    }
+  }, [isOpen, historyLoading, progressHistory.length, loadProgressHistory])
 
   if (!isOpen) return null
 
@@ -101,27 +100,12 @@ export default function ProgressSubmissionModal({
               <p className="text-sm text-gray-500">关键结果 #{keyResultIndex + 1}</p>
             </div>
           </div>
-          <div className="flex items-center space-x-2">
-            <button
-              type="button"
-              onClick={() => {
-                setShowHistory(!showHistory)
-                if (!showHistory && progressHistory.length === 0) {
-                  loadProgressHistory()
-                }
-              }}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              title="查看历史记录"
-            >
-              <History className="w-5 h-5 text-gray-500" />
-            </button>
-            <button
-              onClick={onClose}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              <X className="w-5 h-5 text-gray-500" />
-            </button>
-          </div>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            <X className="w-5 h-5 text-gray-500" />
+          </button>
         </div>
 
         {/* Content */}
@@ -193,6 +177,84 @@ export default function ProgressSubmissionModal({
             />
           </div>
 
+          {/* Progress History */}
+          <div className="space-y-3">
+            <div className="flex items-center space-x-2">
+              <History className="w-4 h-4 text-gray-500" />
+              <span className="text-sm font-medium text-gray-700">提交历史</span>
+              {progressHistory.length > 0 && (
+                <span className="text-xs text-gray-500">({progressHistory.length} 条记录)</span>
+              )}
+            </div>
+
+            <div className="border border-gray-200 rounded-lg bg-gray-50/50">
+              <div className="max-h-40 overflow-y-auto">
+                {historyLoading ? (
+                  <div className="p-4 text-center">
+                    <div className="w-5 h-5 border-2 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                    <span className="text-sm text-gray-500">加载历史记录...</span>
+                  </div>
+                ) : progressHistory.length > 0 ? (
+                  <div className="divide-y divide-gray-200">
+                    {progressHistory.map((record) => {
+                      const progressChange = record.previous_progress !== undefined
+                        ? record.progress - record.previous_progress
+                        : null
+
+                      return (
+                        <div key={record.id} className="p-3 hover:bg-white/50 transition-colors">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center space-x-2 mb-1">
+                                <span className="text-sm font-semibold text-gray-900">
+                                  第{progressHistory.length - progressHistory.indexOf(record)}次提交
+                                </span>
+                                <span className="text-sm font-medium text-blue-600">
+                                  {record.progress}%
+                                </span>
+                                {progressChange !== null && (
+                                  <div className={`flex items-center space-x-1 text-xs px-1.5 py-0.5 rounded-full ${
+                                    progressChange > 0 ? 'bg-green-100 text-green-700' :
+                                    progressChange < 0 ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'
+                                  }`}>
+                                    {progressChange > 0 ? (
+                                      <ArrowUp className="w-3 h-3" />
+                                    ) : progressChange < 0 ? (
+                                      <ArrowDown className="w-3 h-3" />
+                                    ) : (
+                                      <Minus className="w-3 h-3" />
+                                    )}
+                                    <span>{progressChange > 0 ? '+' : ''}{progressChange}%</span>
+                                  </div>
+                                )}
+                              </div>
+
+                              <div className="flex items-center space-x-1 text-xs text-gray-500 mb-2">
+                                <Clock className="w-3 h-3" />
+                                <span>{new Date(record.created_at).toLocaleString('zh-CN')}</span>
+                              </div>
+
+                              {record.progress_description && (
+                                <div className="bg-white/70 p-2 rounded text-xs text-gray-700 border border-gray-200">
+                                  <span className="font-medium">进度说明：</span>
+                                  {record.progress_description}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <div className="p-4 text-center text-sm text-gray-500">
+                    暂无提交记录
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
           {/* Last Updated Info */}
           {keyResult.last_updated && (
             <div className="text-xs text-gray-500 bg-gray-50 p-3 rounded-lg">
@@ -200,75 +262,70 @@ export default function ProgressSubmissionModal({
             </div>
           )}
 
-          {/* Progress History */}
-          {showHistory && (
-            <div className="border border-gray-200 rounded-lg">
-              <div className="flex items-center justify-between p-3 bg-gray-50 border-b border-gray-200">
-                <div className="flex items-center space-x-2">
-                  <History className="w-4 h-4 text-gray-500" />
-                  <span className="text-sm font-medium text-gray-700">进度历史</span>
+          {/* Current Progress Section */}
+          <div className="border-t border-gray-200 pt-4">
+            <div className="flex items-center space-x-2 mb-3">
+              <TrendingUp className="w-4 h-4 text-purple-500" />
+              <span className="text-sm font-medium text-gray-700">更新进度</span>
+            </div>
+
+            {/* Progress Input */}
+            <div className="space-y-3">
+              {/* Progress Bar */}
+              <div className="relative">
+                <div className="w-full h-3 bg-gray-200 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full bg-gradient-to-r ${getProgressColor(progress)} transition-all duration-300`}
+                    style={{ width: `${progress}%` }}
+                  />
                 </div>
-                {progressHistory.length > 0 && (
-                  <span className="text-xs text-gray-500">{progressHistory.length} 条记录</span>
-                )}
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="text-xs font-medium text-white drop-shadow-sm">
+                    {progress}%
+                  </span>
+                </div>
               </div>
 
-              <div className="max-h-48 overflow-y-auto">
-                {historyLoading ? (
-                  <div className="p-4 text-center">
-                    <div className="w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
-                    <span className="text-sm text-gray-500">加载历史记录...</span>
-                  </div>
-                ) : progressHistory.length > 0 ? (
-                  <div className="divide-y divide-gray-100">
-                    {progressHistory.map((record) => {
-                      const progressChange = record.previous_progress !== undefined
-                        ? record.progress - record.previous_progress
-                        : null
-
-                      return (
-                        <div key={record.id} className="p-3 hover:bg-gray-50">
-                          <div className="flex items-center justify-between mb-1">
-                            <div className="flex items-center space-x-2">
-                              <span className="text-sm font-medium text-gray-900">
-                                {record.progress}%
-                              </span>
-                              {progressChange !== null && (
-                                <div className={`flex items-center space-x-1 text-xs ${
-                                  progressChange > 0 ? 'text-green-600' :
-                                  progressChange < 0 ? 'text-red-600' : 'text-gray-500'
-                                }`}>
-                                  {progressChange > 0 ? (
-                                    <ArrowUp className="w-3 h-3" />
-                                  ) : progressChange < 0 ? (
-                                    <ArrowDown className="w-3 h-3" />
-                                  ) : (
-                                    <Minus className="w-3 h-3" />
-                                  )}
-                                  <span>{Math.abs(progressChange)}%</span>
-                                </div>
-                              )}
-                            </div>
-                            <div className="flex items-center space-x-1 text-xs text-gray-500">
-                              <Clock className="w-3 h-3" />
-                              <span>{new Date(record.created_at).toLocaleString('zh-CN')}</span>
-                            </div>
-                          </div>
-                          {record.progress_description && (
-                            <p className="text-sm text-gray-600 mt-1">{record.progress_description}</p>
-                          )}
-                        </div>
-                      )
-                    })}
-                  </div>
-                ) : (
-                  <div className="p-4 text-center text-sm text-gray-500">
-                    暂无历史记录
-                  </div>
-                )}
+              {/* Progress Input */}
+              <div className="flex items-center space-x-3">
+                <Input
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={progress}
+                  onChange={(e) => handleProgressChange(e.target.value)}
+                  className="flex-1"
+                  placeholder="0-100"
+                />
+                <div className="flex space-x-1">
+                  {[25, 50, 75, 100].map((value) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setProgress(value)}
+                      className="px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
+                    >
+                      {value}%
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
-          )}
+
+            {/* Progress Description */}
+            <div className="space-y-2 mt-4">
+              <label className="block text-sm font-medium text-gray-700">
+                进度说明 (可选)
+              </label>
+              <Textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="描述一下你的进展情况、遇到的问题或下一步计划..."
+                rows={3}
+                className="resize-none"
+              />
+            </div>
+          </div>
 
           {/* Error Message */}
           {error && (
