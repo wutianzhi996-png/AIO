@@ -40,3 +40,15 @@ export interface KnowledgeChunk {
   content: string
   embedding: number[]
 }
+
+export interface ProgressHistory {
+  id: number
+  user_id: string
+  okr_id: string
+  key_result_index: number
+  key_result_text: string
+  progress: number
+  progress_description?: string
+  previous_progress?: number
+  created_at: string
+}

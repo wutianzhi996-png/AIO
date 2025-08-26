@@ -203,6 +203,7 @@ export default function OKRDisplay({ okr, onDelete }: OKRDisplayProps) {
           }}
           keyResult={selectedKeyResult.keyResult}
           keyResultIndex={selectedKeyResult.index}
+          okrId={okr.id}
           onSubmit={handleProgressSubmit}
         />
       )}

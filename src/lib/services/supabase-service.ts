@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/client'
-import { OKR, ChatMessage, UserProfile } from '@/lib/supabase/types'
+import { OKR, ChatMessage, UserProfile, ProgressHistory } from '@/lib/supabase/types'
 
 class SupabaseService {
   private _supabase: ReturnType<typeof createClient> | null = null
@@ -307,6 +307,23 @@ class SupabaseService {
     } catch (error) {
       console.error('Error changing password:', error)
       return { success: false, error: 'Network error' }
+    }
+  }
+
+  async getProgressHistory(okrId: string, keyResultIndex: number): Promise<{ data: ProgressHistory[] | null, error: string | null }> {
+    try {
+      const response = await fetch(`/api/okr/progress-history?okrId=${okrId}&keyResultIndex=${keyResultIndex}`)
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        return { data: null, error: result.error || 'Failed to fetch progress history' }
+      }
+
+      return { data: result.data, error: null }
+    } catch (error) {
+      console.error('Error fetching progress history:', error)
+      return { data: null, error: 'Network error' }
     }
   }
 

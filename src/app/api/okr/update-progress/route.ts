@@ -38,6 +38,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid key result index' }, { status: 400 })
     }
 
+    // 获取当前关键结果的进度作为previous_progress
+    const currentKeyResult = okr.key_results[keyResultIndex]
+    const previousProgress = currentKeyResult.progress || 0
+
     // 更新关键结果进度
     const updatedKeyResults = [...okr.key_results]
     updatedKeyResults[keyResultIndex] = {
@@ -60,6 +64,24 @@ export async function POST(request: NextRequest) {
     if (updateError) {
       console.error('Error updating OKR progress:', updateError)
       return NextResponse.json({ error: 'Failed to update progress' }, { status: 500 })
+    }
+
+    // 保存进度历史记录
+    try {
+      await supabase
+        .from('progress_history')
+        .insert({
+          user_id: user.id,
+          okr_id: okrId,
+          key_result_index: keyResultIndex,
+          key_result_text: currentKeyResult.text,
+          progress: progress,
+          progress_description: progressDescription || null,
+          previous_progress: previousProgress
+        })
+    } catch (historyError) {
+      console.error('Error saving progress history:', historyError)
+      // 不因为历史记录保存失败而影响主要功能
     }
 
     return NextResponse.json({ 
@@ -106,18 +128,23 @@ export async function PUT(request: NextRequest) {
     // 批量更新关键结果进度
     const updatedKeyResults = [...okr.key_results]
     const currentTime = new Date().toISOString()
+    const historyRecords = []
 
     for (const update of progressUpdates) {
       const { keyResultIndex, progress, progressDescription } = update
-      
+
       // 验证每个更新
       if (keyResultIndex < 0 || keyResultIndex >= updatedKeyResults.length) {
         continue // 跳过无效的索引
       }
-      
+
       if (progress < 0 || progress > 100) {
         continue // 跳过无效的进度值
       }
+
+      // 获取当前进度作为previous_progress
+      const currentKeyResult = updatedKeyResults[keyResultIndex]
+      const previousProgress = currentKeyResult.progress || 0
 
       updatedKeyResults[keyResultIndex] = {
         ...updatedKeyResults[keyResultIndex],
@@ -126,6 +153,17 @@ export async function PUT(request: NextRequest) {
         last_updated: currentTime,
         completed: progress >= 100
       }
+
+      // 准备历史记录
+      historyRecords.push({
+        user_id: user.id,
+        okr_id: okrId,
+        key_result_index: keyResultIndex,
+        key_result_text: currentKeyResult.text,
+        progress: progress,
+        progress_description: progressDescription || null,
+        previous_progress: previousProgress
+      })
     }
 
     // 保存到数据库
@@ -142,10 +180,22 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to update progress' }, { status: 500 })
     }
 
-    return NextResponse.json({ 
-      success: true, 
+    // 批量保存进度历史记录
+    if (historyRecords.length > 0) {
+      try {
+        await supabase
+          .from('progress_history')
+          .insert(historyRecords)
+      } catch (historyError) {
+        console.error('Error saving batch progress history:', historyError)
+        // 不因为历史记录保存失败而影响主要功能
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
       data: data,
-      message: 'Progress updated successfully' 
+      message: 'Progress updated successfully'
     })
 
   } catch (error) {
