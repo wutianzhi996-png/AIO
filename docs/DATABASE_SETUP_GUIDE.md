@@ -81,6 +81,7 @@ CREATE TABLE public.daily_tasks (
     -- 任务生成相关
     generated_by VARCHAR(20) DEFAULT 'ai' CHECK (generated_by IN ('ai', 'user', 'system')),
     generation_context JSONB,
+    progress_contribution INTEGER DEFAULT 0 CHECK (progress_contribution >= 0 AND progress_contribution <= 100), -- 完成此任务对关键结果进度的贡献值
 
     -- 任务关联和依赖
     parent_task_id BIGINT REFERENCES public.daily_tasks(id) ON DELETE SET NULL,

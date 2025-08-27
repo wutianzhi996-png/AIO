@@ -76,7 +76,7 @@ export async function GET(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   try {
     const { taskId, status, completedAt } = await request.json()
-    
+
     if (!taskId || !status) {
       return NextResponse.json({ error: 'Missing required parameters' }, { status: 400 })
     }
@@ -88,13 +88,28 @@ export async function PATCH(request: NextRequest) {
 
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
-    
+
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    // 首先获取任务信息，包括关联的OKR信息
+    const { data: task, error: taskError } = await supabase
+      .from('daily_tasks')
+      .select(`
+        *,
+        okrs!inner(id, objective, key_results)
+      `)
+      .eq('id', taskId)
+      .eq('user_id', user.id)
+      .single()
+
+    if (taskError || !task) {
+      return NextResponse.json({ error: 'Task not found' }, { status: 404 })
+    }
+
     const updateData: Record<string, unknown> = { status }
-    
+
     // 如果任务完成，记录完成时间
     if (status === 'completed') {
       updateData.completed_at = completedAt || new Date().toISOString()
@@ -103,7 +118,8 @@ export async function PATCH(request: NextRequest) {
       updateData.completed_at = null
     }
 
-    const { data, error: updateError } = await supabase
+    // 更新任务状态
+    const { data: updatedTask, error: updateError } = await supabase
       .from('daily_tasks')
       .update(updateData)
       .eq('id', taskId)
@@ -116,15 +132,84 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to update task' }, { status: 500 })
     }
 
-    return NextResponse.json({ 
-      success: true, 
-      task: data,
+    // 如果任务完成且有关联的关键结果，更新OKR进度
+    if (status === 'completed' && task.key_result_index !== null && task.progress_contribution > 0) {
+      try {
+        await updateOKRProgress(supabase, task, user.id)
+      } catch (progressError) {
+        console.error('Error updating OKR progress:', progressError)
+        // 不因为进度更新失败而影响任务状态更新
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      task: updatedTask,
       message: 'Task updated successfully'
     })
 
   } catch (error) {
     console.error('Error in tasks PATCH API:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
+
+// 更新OKR进度的辅助函数
+async function updateOKRProgress(supabase: Awaited<ReturnType<typeof createClient>>, task: Record<string, unknown>, userId: string) {
+  const okr = (task as { okrs: { id: string; objective: string; key_results: Array<{ text: string; progress?: number; progress_description?: string; last_updated?: string; completed?: boolean }> } }).okrs
+  const keyResultIndex = (task as { key_result_index: number }).key_result_index
+  const progressContribution = (task as { progress_contribution?: number }).progress_contribution || 0
+
+  if (!okr || keyResultIndex === null || progressContribution <= 0) {
+    return
+  }
+
+  // 获取当前关键结果
+  const currentKeyResult = okr.key_results[keyResultIndex]
+  if (!currentKeyResult) {
+    return
+  }
+
+  const currentProgress = currentKeyResult.progress || 0
+  const newProgress = Math.min(100, currentProgress + progressContribution)
+
+  // 更新关键结果进度
+  const updatedKeyResults = [...okr.key_results]
+  updatedKeyResults[keyResultIndex] = {
+    ...updatedKeyResults[keyResultIndex],
+    progress: newProgress,
+    progress_description: `通过完成任务"${(task as { title: string }).title}"增加了${progressContribution}%进度`,
+    last_updated: new Date().toISOString(),
+    completed: newProgress >= 100
+  }
+
+  // 保存到数据库
+  const { error: updateError } = await supabase
+    .from('okrs')
+    .update({ key_results: updatedKeyResults })
+    .eq('id', okr.id)
+    .eq('user_id', userId)
+
+  if (updateError) {
+    throw updateError
+  }
+
+  // 保存进度历史记录
+  try {
+    await supabase
+      .from('progress_history')
+      .insert({
+        user_id: userId,
+        okr_id: okr.id,
+        key_result_index: keyResultIndex,
+        key_result_text: currentKeyResult.text,
+        progress: newProgress,
+        progress_description: `通过完成任务"${(task as { title: string }).title}"增加了${progressContribution}%进度`,
+        previous_progress: currentProgress
+      })
+  } catch (historyError) {
+    console.error('Error saving progress history:', historyError)
+    // 不因为历史记录保存失败而影响主要功能
   }
 }
 

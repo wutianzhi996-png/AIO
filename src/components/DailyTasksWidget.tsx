@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { CheckCircle2, Circle, Clock, Target, RefreshCw, AlertTriangle, Plus, Database, ExternalLink } from 'lucide-react'
+import { CheckCircle2, Circle, Clock, Target, RefreshCw, AlertTriangle, Plus, Database, ExternalLink, TrendingUp } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { DailyTask } from '@/lib/supabase/types'
 import { supabaseService } from '@/lib/services/supabase-service'
@@ -296,18 +296,28 @@ export default function DailyTasksWidget({ className = '' }: DailyTasksWidgetPro
                     <p className="text-xs text-gray-600 mb-2">{task.description}</p>
                   )}
                   
-                  <div className="flex items-center space-x-3 text-xs text-gray-500">
-                    {task.estimated_duration && (
-                      <div className="flex items-center space-x-1">
-                        <Clock className="w-3 h-3" />
-                        <span>{task.estimated_duration}分钟</span>
-                      </div>
-                    )}
-                    
-                    {task.related_key_result && (
-                      <div className="flex items-center space-x-1">
-                        <Target className="w-3 h-3" />
-                        <span className="truncate max-w-32">{task.related_key_result}</span>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3 text-xs text-gray-500">
+                      {task.estimated_duration && (
+                        <div className="flex items-center space-x-1">
+                          <Clock className="w-3 h-3" />
+                          <span>{task.estimated_duration}分钟</span>
+                        </div>
+                      )}
+
+                      {task.related_key_result && (
+                        <div className="flex items-center space-x-1">
+                          <Target className="w-3 h-3" />
+                          <span className="truncate max-w-32">{task.related_key_result}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 进度贡献显示 */}
+                    {task.progress_contribution && task.progress_contribution > 0 && (
+                      <div className="flex items-center space-x-1 text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded-full">
+                        <TrendingUp className="w-3 h-3" />
+                        <span>+{task.progress_contribution}%</span>
                       </div>
                     )}
                   </div>
@@ -329,10 +339,23 @@ export default function DailyTasksWidget({ className = '' }: DailyTasksWidgetPro
                 </button>
                 
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-sm font-medium text-gray-700 line-through">{task.title}</h3>
+                  <div className="flex items-center justify-between mb-1">
+                    <h3 className="text-sm font-medium text-gray-700 line-through">{task.title}</h3>
+                    {task.progress_contribution && task.progress_contribution > 0 && (
+                      <div className="flex items-center space-x-1 text-xs text-green-600 bg-green-50 px-2 py-1 rounded-full">
+                        <TrendingUp className="w-3 h-3" />
+                        <span>+{task.progress_contribution}%</span>
+                      </div>
+                    )}
+                  </div>
                   {task.completed_at && (
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-gray-500">
                       完成于 {new Date(task.completed_at).toLocaleTimeString('zh-CN')}
+                      {task.progress_contribution && task.progress_contribution > 0 && task.related_key_result && (
+                        <span className="ml-2 text-green-600">
+                          • 已为&ldquo;{task.related_key_result}&rdquo;增加{task.progress_contribution}%进度
+                        </span>
+                      )}
                     </p>
                   )}
                 </div>

@@ -68,6 +68,7 @@ export interface DailyTask {
   completed_at?: string
   generated_by: 'ai' | 'user' | 'system'
   generation_context?: Record<string, unknown>
+  progress_contribution?: number // 完成此任务对关键结果进度的贡献值 (0-100)
   parent_task_id?: number
   depends_on_task_ids?: number[]
   created_at: string

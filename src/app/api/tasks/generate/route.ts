@@ -244,7 +244,8 @@ ${previousTasks ? JSON.stringify(previousTasksSummary, null, 2) : '无前一天�
 1. 任务与OKR关键结果直接相关
 2. 优先级1-5（1最高）
 3. 估算完成时间（分钟）
-4. 任务具体可操作
+4. 设置进度贡献值（完成此任务对关键结果进度的贡献百分比，5-20%）
+5. 任务具体可操作
 
 **重要：只返回JSON格式，不要任何解释文字**
 
@@ -257,7 +258,8 @@ JSON格式：
       "priority": 2,
       "estimatedDuration": 60,
       "relatedKRIndex": 0,
-      "okrId": "${okrs[0] ? (okrs[0] as { id: string }).id : ''}"
+      "okrId": "${okrs[0] ? (okrs[0] as { id: string }).id : ''}",
+      "progressContribution": 10
     }
   ]
 }`
@@ -296,13 +298,24 @@ function generateFallbackTasks(
       priority = 3
     }
 
+    // 计算进度贡献值
+    let progressContribution = 10 // 默认贡献10%
+    if (progress < 25) {
+      progressContribution = 15 // 初期任务贡献更多
+    } else if (progress < 75) {
+      progressContribution = 10 // 中期任务正常贡献
+    } else {
+      progressContribution = 5 // 后期任务贡献较少
+    }
+
     tasks.push({
       title: taskTitle,
       description: description,
       priority: priority,
       estimatedDuration: 60,
       relatedKRIndex: index,
-      okrId: mainOkr.id
+      okrId: mainOkr.id,
+      progressContribution: progressContribution
     })
   })
 
@@ -314,7 +327,8 @@ function generateFallbackTasks(
       priority: 2,
       estimatedDuration: 45,
       relatedKRIndex: null,
-      okrId: mainOkr.id
+      okrId: mainOkr.id,
+      progressContribution: 5 // 通用任务贡献较少
     })
   }
 
@@ -322,8 +336,8 @@ function generateFallbackTasks(
 }
 
 function processGeneratedTasks(
-  generatedTasks: { tasks: Array<{ title: string; description?: string; priority?: number; estimatedDuration?: number; relatedKRIndex?: number; okrId?: string }> },
-  okrs: Array<{ id: string; objective: string; key_results: Array<{ text: string }> }>,
+  generatedTasks: { tasks: Array<{ title: string; description?: string; priority?: number; estimatedDuration?: number; relatedKRIndex?: number; okrId?: string; progressContribution?: number }> },
+  okrs: Array<{ id: string; objective: string; key_results: Array<{ text: string; progress?: number }> }>,
   userId: string,
   taskDate: string,
   taskType: string
@@ -335,7 +349,24 @@ function processGeneratedTasks(
   return generatedTasks.tasks.map((task) => {
     // 找到对应的OKR
     const relatedOKR = okrs.find(okr => okr.id === task.okrId) || okrs[0]
-    
+
+    // 计算进度贡献值
+    let progressContribution = task.progressContribution || 10
+
+    // 如果AI没有提供进度贡献值，根据关键结果当前进度智能计算
+    if (!task.progressContribution && task.relatedKRIndex !== undefined) {
+      const currentKR = relatedOKR.key_results[task.relatedKRIndex]
+      const currentProgress = currentKR?.progress || 0
+
+      if (currentProgress < 25) {
+        progressContribution = 15 // 初期任务贡献更多
+      } else if (currentProgress < 75) {
+        progressContribution = 10 // 中期任务正常贡献
+      } else {
+        progressContribution = 5 // 后期任务贡献较少
+      }
+    }
+
     return {
       user_id: userId,
       okr_id: relatedOKR.id,
@@ -348,10 +379,11 @@ function processGeneratedTasks(
       task_date: taskDate,
       estimated_duration: task.estimatedDuration || 60,
       generated_by: 'ai',
+      progress_contribution: progressContribution,
       generation_context: {
         aiGenerated: true,
         relatedOKR: relatedOKR.objective,
-        relatedKR: task.relatedKRIndex !== undefined ? 
+        relatedKR: task.relatedKRIndex !== undefined ?
           relatedOKR.key_results[task.relatedKRIndex]?.text : null
       }
     }
