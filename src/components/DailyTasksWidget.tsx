@@ -87,11 +87,15 @@ export default function DailyTasksWidget({ className = '', onTaskCompleted }: Da
             : task
         ))
 
-        // 如果任务完成且有关联的关键结果，通知父组件刷新OKR数据
-        if (status === 'completed' && onTaskCompleted) {
+        // 如果任务状态变化且有关联的关键结果，通知父组件刷新OKR数据
+        if (onTaskCompleted) {
           const task = tasks.find(t => t.id === taskId)
-          if (task && task.key_result_index !== null) {
-            console.log('Task completed, triggering OKR refresh')
+          if (task && task.key_result_index !== null && task.status !== status) {
+            console.log('Task status changed, triggering OKR refresh:', {
+              oldStatus: task.status,
+              newStatus: status,
+              taskId
+            })
             onTaskCompleted()
           }
         }

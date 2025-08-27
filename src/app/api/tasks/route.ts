@@ -132,21 +132,35 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to update task' }, { status: 500 })
     }
 
-    // 如果任务完成且有关联的关键结果，更新OKR进度
-    console.log('Task completion check:', {
-      status,
+    // 如果任务状态变化且有关联的关键结果，更新OKR进度
+    console.log('Task status change check:', {
+      oldStatus: task.status,
+      newStatus: status,
       key_result_index: task.key_result_index,
       progress_contribution: task.progress_contribution,
       task_id: task.id
     })
 
-    if (status === 'completed' && task.key_result_index !== null) {
+    if (task.key_result_index !== null && task.status !== status) {
       try {
         // 如果没有progress_contribution或为0，设置默认值
         const progressContribution = task.progress_contribution || 10
-        console.log('Updating OKR progress with contribution:', progressContribution)
 
-        await updateOKRProgress(supabase, { ...task, progress_contribution: progressContribution }, user.id)
+        // 根据状态变化决定是增加还是减少进度
+        let progressChange = 0
+        if (task.status !== 'completed' && status === 'completed') {
+          // 从未完成变为完成：增加进度
+          progressChange = progressContribution
+          console.log('Task completed, adding progress:', progressChange)
+        } else if (task.status === 'completed' && status !== 'completed') {
+          // 从完成变为未完成：减少进度
+          progressChange = -progressContribution
+          console.log('Task uncompleted, subtracting progress:', progressChange)
+        }
+
+        if (progressChange !== 0) {
+          await updateOKRProgress(supabase, { ...task, progress_contribution: progressChange }, user.id)
+        }
       } catch (progressError) {
         console.error('Error updating OKR progress:', progressError)
         // 不因为进度更新失败而影响任务状态更新
@@ -169,17 +183,17 @@ export async function PATCH(request: NextRequest) {
 async function updateOKRProgress(supabase: Awaited<ReturnType<typeof createClient>>, task: Record<string, unknown>, userId: string) {
   const okr = (task as { okrs: { id: string; objective: string; key_results: Array<{ text: string; progress?: number; progress_description?: string; last_updated?: string; completed?: boolean }> } }).okrs
   const keyResultIndex = (task as { key_result_index: number }).key_result_index
-  const progressContribution = (task as { progress_contribution?: number }).progress_contribution || 0
+  const progressChange = (task as { progress_contribution?: number }).progress_contribution || 0
 
   console.log('updateOKRProgress called with:', {
     okr_id: okr?.id,
     keyResultIndex,
-    progressContribution,
+    progressChange,
     userId
   })
 
-  if (!okr || keyResultIndex === null || progressContribution <= 0) {
-    console.log('Skipping OKR update:', { hasOkr: !!okr, keyResultIndex, progressContribution })
+  if (!okr || keyResultIndex === null || progressChange === 0) {
+    console.log('Skipping OKR update:', { hasOkr: !!okr, keyResultIndex, progressChange })
     return
   }
 
@@ -191,21 +205,24 @@ async function updateOKRProgress(supabase: Awaited<ReturnType<typeof createClien
   }
 
   const currentProgress = currentKeyResult.progress || 0
-  const newProgress = Math.min(100, currentProgress + progressContribution)
+  const newProgress = Math.max(0, Math.min(100, currentProgress + progressChange))
 
   console.log('Progress update:', {
     currentProgress,
-    progressContribution,
+    progressChange,
     newProgress,
     keyResultText: currentKeyResult.text
   })
 
   // 更新关键结果进度
   const updatedKeyResults = [...okr.key_results]
+  const actionText = progressChange > 0 ? '完成' : '取消完成'
+  const changeText = progressChange > 0 ? `增加了${progressChange}%` : `减少了${Math.abs(progressChange)}%`
+
   updatedKeyResults[keyResultIndex] = {
     ...updatedKeyResults[keyResultIndex],
     progress: newProgress,
-    progress_description: `通过完成任务"${(task as { title: string }).title}"增加了${progressContribution}%进度`,
+    progress_description: `通过${actionText}任务"${(task as { title: string }).title}"${changeText}进度`,
     last_updated: new Date().toISOString(),
     completed: newProgress >= 100
   }
@@ -239,7 +256,7 @@ async function updateOKRProgress(supabase: Awaited<ReturnType<typeof createClien
         key_result_index: keyResultIndex,
         key_result_text: currentKeyResult.text,
         progress: newProgress,
-        progress_description: `通过完成任务"${(task as { title: string }).title}"增加了${progressContribution}%进度`,
+        progress_description: `通过${actionText}任务"${(task as { title: string }).title}"${changeText}进度`,
         previous_progress: currentProgress
       })
   } catch (historyError) {
