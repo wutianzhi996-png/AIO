@@ -21,7 +21,24 @@ export async function POST(request: NextRequest) {
     }
 
     const today = new Date().toISOString().split('T')[0]
-    
+
+    // 先检查daily_tasks表是否存在
+    const { error: tableError } = await supabase
+      .from('daily_tasks')
+      .select('id')
+      .limit(1)
+
+    if (tableError) {
+      console.error('Table check error:', tableError)
+      if (tableError.code === 'PGRST116' || tableError.message.includes('does not exist')) {
+        return NextResponse.json({
+          error: '任务管理功能尚未启用，请先在数据库中创建daily_tasks表。请查看DATABASE_SETUP_GUIDE.md了解如何创建。',
+          needsSetup: true
+        }, { status: 400 })
+      }
+      return NextResponse.json({ error: 'Database error' }, { status: 500 })
+    }
+
     // 检查今天是否已经生成过任务
     if (!forceRegenerate) {
       const { data: existingLog } = await supabase
@@ -35,16 +52,27 @@ export async function POST(request: NextRequest) {
       if (existingLog) {
         // 返回已生成的任务
         const { data: existingTasks } = await supabase
-          .from('today_tasks')
-          .select('*')
+          .from('daily_tasks')
+          .select(`
+            *,
+            okrs!inner(objective, key_results)
+          `)
           .eq('user_id', user.id)
           .eq('task_date', today)
           .eq('task_type', taskType)
           .order('priority', { ascending: true })
 
-        return NextResponse.json({ 
-          success: true, 
-          tasks: existingTasks || [],
+        const processedTasks = existingTasks?.map(task => ({
+          ...task,
+          objective: task.okrs?.objective,
+          related_key_result: task.key_result_index !== null && task.okrs?.key_results?.[task.key_result_index]
+            ? task.okrs.key_results[task.key_result_index].text
+            : null
+        })) || []
+
+        return NextResponse.json({
+          success: true,
+          tasks: processedTasks,
           message: '今日任务已存在',
           regenerated: false
         })

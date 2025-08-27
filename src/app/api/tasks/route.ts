@@ -15,10 +15,31 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // 使用视图查询今日任务
+    // 先检查daily_tasks表是否存在
+    const { error: tableError } = await supabase
+      .from('daily_tasks')
+      .select('id')
+      .limit(1)
+
+    if (tableError) {
+      console.error('Table check error:', tableError)
+      // 如果表不存在，返回友好的错误信息
+      if (tableError.code === 'PGRST116' || tableError.message.includes('does not exist')) {
+        return NextResponse.json({
+          error: '任务管理功能尚未启用，请先在数据库中创建相关表结构',
+          needsSetup: true
+        }, { status: 400 })
+      }
+      return NextResponse.json({ error: 'Database error' }, { status: 500 })
+    }
+
+    // 查询今日任务 (直接查询表而不是视图)
     const { data: tasks, error: tasksError } = await supabase
-      .from('today_tasks')
-      .select('*')
+      .from('daily_tasks')
+      .select(`
+        *,
+        okrs!inner(objective, key_results)
+      `)
       .eq('user_id', user.id)
       .eq('task_date', date)
       .eq('task_type', taskType)
@@ -29,9 +50,18 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to fetch tasks' }, { status: 500 })
     }
 
-    return NextResponse.json({ 
-      success: true, 
-      tasks: tasks || [],
+    // 处理关联的关键结果信息
+    const processedTasks = tasks?.map(task => ({
+      ...task,
+      objective: task.okrs?.objective,
+      related_key_result: task.key_result_index !== null && task.okrs?.key_results?.[task.key_result_index]
+        ? task.okrs.key_results[task.key_result_index].text
+        : null
+    })) || []
+
+    return NextResponse.json({
+      success: true,
+      tasks: processedTasks,
       date,
       taskType
     })

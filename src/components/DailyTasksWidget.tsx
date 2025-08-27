@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { CheckCircle2, Circle, Clock, Target, RefreshCw, AlertTriangle, Plus } from 'lucide-react'
+import { CheckCircle2, Circle, Clock, Target, RefreshCw, AlertTriangle, Plus, Database, ExternalLink } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { DailyTask } from '@/lib/supabase/types'
 import { supabaseService } from '@/lib/services/supabase-service'
@@ -15,19 +15,28 @@ export default function DailyTasksWidget({ className = '' }: DailyTasksWidgetPro
   const [loading, setLoading] = useState(false)
   const [generating, setGenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [needsSetup, setNeedsSetup] = useState(false)
 
   const loadTasks = useCallback(async () => {
     setLoading(true)
     setError(null)
+    setNeedsSetup(false)
     try {
-      const { data, error } = await supabaseService.getTodayTasks()
-      if (error) {
-        setError(error)
+      const response = await fetch('/api/tasks')
+      const result = await response.json()
+
+      if (!response.ok) {
+        if (result.needsSetup) {
+          setNeedsSetup(true)
+          setError(result.error)
+        } else {
+          setError(result.error || '加载任务失败')
+        }
       } else {
-        setTasks(data || [])
+        setTasks(result.tasks || [])
       }
     } catch {
-      setError('加载任务失败')
+      setError('网络错误，请检查连接')
     } finally {
       setLoading(false)
     }
@@ -36,15 +45,28 @@ export default function DailyTasksWidget({ className = '' }: DailyTasksWidgetPro
   const generateTasks = useCallback(async (forceRegenerate = false) => {
     setGenerating(true)
     setError(null)
+    setNeedsSetup(false)
     try {
-      const { data, error } = await supabaseService.generateDailyTasks('daily', forceRegenerate)
-      if (error) {
-        setError(error)
+      const response = await fetch('/api/tasks/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ taskType: 'daily', forceRegenerate })
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        if (result.needsSetup) {
+          setNeedsSetup(true)
+          setError(result.error)
+        } else {
+          setError(result.error || '生成任务失败')
+        }
       } else {
-        setTasks(data || [])
+        setTasks(result.tasks || [])
       }
     } catch {
-      setError('生成任务失败')
+      setError('网络错误，请检查连接')
     } finally {
       setGenerating(false)
     }
@@ -152,17 +174,54 @@ export default function DailyTasksWidget({ className = '' }: DailyTasksWidgetPro
       {/* Content */}
       <div className="p-4">
         {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center space-x-2">
-            <AlertTriangle className="w-4 h-4 text-red-600" />
-            <span className="text-sm text-red-700">{error}</span>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setError(null)}
-              className="ml-auto text-red-600 hover:text-red-700"
-            >
-              ×
-            </Button>
+          <div className={`mb-4 p-4 rounded-lg border ${needsSetup ? 'bg-blue-50 border-blue-200' : 'bg-red-50 border-red-200'}`}>
+            <div className="flex items-start space-x-3">
+              {needsSetup ? (
+                <Database className="w-5 h-5 text-blue-600 mt-0.5" />
+              ) : (
+                <AlertTriangle className="w-5 h-5 text-red-600 mt-0.5" />
+              )}
+              <div className="flex-1">
+                <p className={`text-sm font-medium ${needsSetup ? 'text-blue-800' : 'text-red-700'} mb-2`}>
+                  {needsSetup ? '需要数据库设置' : '错误'}
+                </p>
+                <p className={`text-sm ${needsSetup ? 'text-blue-700' : 'text-red-600'} mb-3`}>
+                  {error}
+                </p>
+                {needsSetup && (
+                  <div className="space-y-2">
+                    <p className="text-xs text-blue-600">
+                      请按照以下步骤启用任务管理功能：
+                    </p>
+                    <ol className="text-xs text-blue-600 space-y-1 ml-4 list-decimal">
+                      <li>登录 Supabase 控制台</li>
+                      <li>打开 SQL Editor</li>
+                      <li>执行 docs/DATABASE_SETUP_GUIDE.md 中的任务管理SQL脚本</li>
+                    </ol>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => window.open('https://supabase.com/dashboard', '_blank')}
+                      className="mt-2 text-blue-600 border-blue-300 hover:bg-blue-50"
+                    >
+                      <ExternalLink className="w-3 h-3 mr-1" />
+                      打开 Supabase
+                    </Button>
+                  </div>
+                )}
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setError(null)
+                  setNeedsSetup(false)
+                }}
+                className={`${needsSetup ? 'text-blue-600 hover:text-blue-700' : 'text-red-600 hover:text-red-700'}`}
+              >
+                ×
+              </Button>
+            </div>
           </div>
         )}
 
