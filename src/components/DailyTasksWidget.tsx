@@ -1,10 +1,11 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { CheckCircle2, Circle, Clock, Target, RefreshCw, AlertTriangle, Plus, Database, ExternalLink, TrendingUp } from 'lucide-react'
+import { CheckCircle2, Circle, Clock, Target, RefreshCw, AlertTriangle, Plus, Database, ExternalLink, TrendingUp, Ban, HelpCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { DailyTask } from '@/lib/supabase/types'
 import { supabaseService } from '@/lib/services/supabase-service'
+import TaskObstacleModal from './TaskObstacleModal'
 
 interface DailyTasksWidgetProps {
   className?: string
@@ -17,6 +18,15 @@ export default function DailyTasksWidget({ className = '', onTaskCompleted }: Da
   const [generating, setGenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [needsSetup, setNeedsSetup] = useState(false)
+  const [obstacleModalOpen, setObstacleModalOpen] = useState(false)
+  const [selectedTask, setSelectedTask] = useState<DailyTask | null>(null)
+  const [proactiveSuggestions, setProactiveSuggestions] = useState<Array<{
+    taskId: number
+    taskTitle: string
+    daysSinceCreated: number
+    message: string
+  }>>([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
 
   const loadTasks = useCallback(async () => {
     setLoading(true)
@@ -105,9 +115,36 @@ export default function DailyTasksWidget({ className = '', onTaskCompleted }: Da
     }
   }, [onTaskCompleted, tasks])
 
+  const handleReportObstacle = (task: DailyTask) => {
+    setSelectedTask(task)
+    setObstacleModalOpen(true)
+  }
+
+  const handleObstacleReported = () => {
+    loadTasks() // 刷新任务列表
+  }
+
+  const checkForObstacles = useCallback(async () => {
+    try {
+      const response = await fetch('/api/tasks/check-obstacles', {
+        method: 'POST'
+      })
+      const result = await response.json()
+
+      if (result.success && result.suggestions && result.suggestions.length > 0) {
+        setProactiveSuggestions(result.suggestions)
+        setShowSuggestions(true)
+      }
+    } catch (error) {
+      console.error('Error checking obstacles:', error)
+    }
+  }, [])
+
   useEffect(() => {
     loadTasks()
-  }, [loadTasks])
+    // 延迟检查障碍，避免影响初始加载
+    setTimeout(checkForObstacles, 2000)
+  }, [loadTasks, checkForObstacles])
 
   const getPriorityColor = (priority: number) => {
     switch (priority) {
@@ -133,6 +170,7 @@ export default function DailyTasksWidget({ className = '', onTaskCompleted }: Da
 
   const completedTasks = tasks.filter(task => task.status === 'completed')
   const pendingTasks = tasks.filter(task => task.status === 'pending' || task.status === 'in_progress')
+  const blockedTasks = tasks.filter(task => task.status === 'blocked')
   const failedTasks = tasks.filter(task => task.status === 'failed')
 
   return (
@@ -268,6 +306,61 @@ export default function DailyTasksWidget({ className = '', onTaskCompleted }: Da
           </div>
         ) : (
           <div className="space-y-3">
+            {/* 主动障碍诊断建议 */}
+            {showSuggestions && proactiveSuggestions.length > 0 && (
+              <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <HelpCircle className="w-4 h-4 text-amber-600" />
+                      <span className="text-sm font-medium text-amber-800">AI智能提醒</span>
+                    </div>
+                    <p className="text-sm text-amber-700 mb-3">
+                      发现一些任务可能需要帮助，要不要我来分析一下？
+                    </p>
+                    <div className="space-y-2">
+                      {proactiveSuggestions.slice(0, 2).map((suggestion) => (
+                        <div key={suggestion.taskId} className="text-xs text-amber-600">
+                          • {suggestion.message}
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex items-center space-x-2 mt-3">
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          const firstSuggestion = proactiveSuggestions[0]
+                          const task = tasks.find(t => t.id === firstSuggestion.taskId)
+                          if (task) {
+                            handleReportObstacle(task)
+                          }
+                        }}
+                        className="bg-amber-600 hover:bg-amber-700 text-white"
+                      >
+                        获取帮助
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setShowSuggestions(false)}
+                        className="text-amber-600 hover:text-amber-700"
+                      >
+                        稍后再说
+                      </Button>
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowSuggestions(false)}
+                    className="text-amber-600 hover:text-amber-700"
+                  >
+                    ×
+                  </Button>
+                </div>
+              </div>
+            )}
+
             {/* 失败任务提醒 */}
             {failedTasks.length > 0 && (
               <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
@@ -284,6 +377,59 @@ export default function DailyTasksWidget({ className = '', onTaskCompleted }: Da
                 </div>
               </div>
             )}
+
+            {/* 受阻任务 */}
+            {blockedTasks.map(task => (
+              <div
+                key={task.id}
+                className="flex items-start space-x-3 p-3 bg-orange-50 rounded-lg border border-orange-200"
+              >
+                <div className="mt-0.5 text-orange-600">
+                  <Ban className="w-5 h-5" />
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center space-x-2 mb-1">
+                    <h3 className="text-sm font-medium text-orange-900 truncate">{task.title}</h3>
+                    <span className="px-2 py-0.5 text-xs rounded-full bg-orange-100 text-orange-700 border border-orange-200">
+                      受阻
+                    </span>
+                  </div>
+
+                  {task.description && (
+                    <p className="text-xs text-orange-700 mb-2">{task.description}</p>
+                  )}
+
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3 text-xs text-orange-600">
+                      {task.estimated_duration && (
+                        <div className="flex items-center space-x-1">
+                          <Clock className="w-3 h-3" />
+                          <span>{task.estimated_duration}分钟</span>
+                        </div>
+                      )}
+
+                      {task.related_key_result && (
+                        <div className="flex items-center space-x-1">
+                          <Target className="w-3 h-3" />
+                          <span className="truncate max-w-32">{task.related_key_result}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleReportObstacle(task)}
+                      className="text-orange-600 border-orange-300 hover:bg-orange-100"
+                    >
+                      <HelpCircle className="w-3 h-3 mr-1" />
+                      查看诊断
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ))}
 
             {/* 待完成任务 */}
             {pendingTasks.map(task => (
@@ -327,13 +473,26 @@ export default function DailyTasksWidget({ className = '', onTaskCompleted }: Da
                       )}
                     </div>
 
-                    {/* 进度贡献显示 */}
-                    {task.progress_contribution && task.progress_contribution > 0 && (
-                      <div className="flex items-center space-x-1 text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded-full">
-                        <TrendingUp className="w-3 h-3" />
-                        <span>+{task.progress_contribution}%</span>
-                      </div>
-                    )}
+                    <div className="flex items-center space-x-2">
+                      {/* 进度贡献显示 */}
+                      {task.progress_contribution && task.progress_contribution > 0 && (
+                        <div className="flex items-center space-x-1 text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded-full">
+                          <TrendingUp className="w-3 h-3" />
+                          <span>+{task.progress_contribution}%</span>
+                        </div>
+                      )}
+
+                      {/* 报告障碍按钮 */}
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleReportObstacle(task)}
+                        className="text-gray-400 hover:text-orange-600 p-1"
+                        title="遇到困难？报告障碍获取AI帮助"
+                      >
+                        <HelpCircle className="w-3 h-3" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -403,6 +562,19 @@ export default function DailyTasksWidget({ className = '', onTaskCompleted }: Da
           </div>
         )}
       </div>
+
+      {/* 障碍诊断模态框 */}
+      {selectedTask && (
+        <TaskObstacleModal
+          isOpen={obstacleModalOpen}
+          onClose={() => {
+            setObstacleModalOpen(false)
+            setSelectedTask(null)
+          }}
+          task={selectedTask}
+          onObstacleReported={handleObstacleReported}
+        />
+      )}
     </div>
   )
 }

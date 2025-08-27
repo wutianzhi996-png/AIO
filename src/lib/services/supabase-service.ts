@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/client'
-import { OKR, ChatMessage, UserProfile, ProgressHistory, DailyTask } from '@/lib/supabase/types'
+import { OKR, ChatMessage, UserProfile, ProgressHistory, DailyTask, TaskObstacle } from '@/lib/supabase/types'
 
 class SupabaseService {
   private _supabase: ReturnType<typeof createClient> | null = null
@@ -436,6 +436,69 @@ class SupabaseService {
     } catch (error) {
       console.error('Error deleting task:', error)
       return { error: 'Network error' }
+    }
+  }
+
+  // 障碍诊断相关方法
+  async reportTaskObstacle(taskId: number, description: string, obstacleType: string): Promise<{ data: TaskObstacle | null, error: string | null }> {
+    try {
+      const response = await fetch('/api/tasks/obstacles', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ taskId, description, obstacleType })
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        return { data: null, error: result.error || 'Failed to report obstacle' }
+      }
+
+      return { data: result.obstacle, error: null }
+    } catch (error) {
+      console.error('Error reporting obstacle:', error)
+      return { data: null, error: 'Network error' }
+    }
+  }
+
+  async getTaskObstacles(taskId?: number, status?: string): Promise<{ data: TaskObstacle[] | null, error: string | null }> {
+    try {
+      const params = new URLSearchParams()
+      if (taskId) params.append('taskId', taskId.toString())
+      if (status) params.append('status', status)
+
+      const response = await fetch(`/api/tasks/obstacles?${params.toString()}`)
+      const result = await response.json()
+
+      if (!response.ok) {
+        return { data: null, error: result.error || 'Failed to fetch obstacles' }
+      }
+
+      return { data: result.obstacles, error: null }
+    } catch (error) {
+      console.error('Error fetching obstacles:', error)
+      return { data: null, error: 'Network error' }
+    }
+  }
+
+  async updateObstacleStatus(obstacleId: number, status: string, userFeedback?: string, effectivenessRating?: number): Promise<{ data: TaskObstacle | null, error: string | null }> {
+    try {
+      const response = await fetch('/api/tasks/obstacles', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ obstacleId, status, userFeedback, effectivenessRating })
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        return { data: null, error: result.error || 'Failed to update obstacle' }
+      }
+
+      return { data: result.obstacle, error: null }
+    } catch (error) {
+      console.error('Error updating obstacle:', error)
+      return { data: null, error: 'Network error' }
     }
   }
 

@@ -13,7 +13,7 @@ CREATE TABLE public.daily_tasks (
     task_type VARCHAR(20) DEFAULT 'daily' CHECK (task_type IN ('daily', 'weekly')), -- 任务类型
     
     -- 任务状态和优先级
-    status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'in_progress', 'completed', 'failed', 'cancelled')),
+    status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'in_progress', 'completed', 'failed', 'cancelled', 'blocked')),
     priority INTEGER DEFAULT 2 CHECK (priority >= 1 AND priority <= 5), -- 1=最高优先级, 5=最低优先级
     
     -- 时间相关

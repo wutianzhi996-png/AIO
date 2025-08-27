@@ -81,7 +81,7 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required parameters' }, { status: 400 })
     }
 
-    const validStatuses = ['pending', 'in_progress', 'completed', 'failed', 'cancelled']
+    const validStatuses = ['pending', 'in_progress', 'completed', 'failed', 'cancelled', 'blocked']
     if (!validStatuses.includes(status)) {
       return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
     }

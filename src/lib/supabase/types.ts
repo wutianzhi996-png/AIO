@@ -61,7 +61,7 @@ export interface DailyTask {
   title: string
   description?: string
   task_type: 'daily' | 'weekly'
-  status: 'pending' | 'in_progress' | 'completed' | 'failed' | 'cancelled'
+  status: 'pending' | 'in_progress' | 'completed' | 'failed' | 'cancelled' | 'blocked'
   priority: number // 1-5, 1 is highest priority
   task_date: string
   estimated_duration?: number // in minutes
@@ -99,4 +99,23 @@ export interface TaskCompletionStats {
   failed_tasks: number
   pending_tasks: number
   completion_rate: number
+}
+
+export interface TaskObstacle {
+  id: number
+  user_id: string
+  task_id: number
+  obstacle_type: 'time_management' | 'knowledge_gap' | 'motivation' | 'resource_lack' | 'technical_issue' | 'other'
+  description: string
+  ai_analysis: string
+  suggested_solutions: Array<{
+    title: string
+    description: string
+    priority: number
+    estimated_time: number
+  }>
+  status: 'identified' | 'in_progress' | 'resolved' | 'dismissed'
+  created_at: string
+  updated_at: string
+  resolved_at?: string
 }
