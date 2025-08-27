@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/client'
-import { OKR, ChatMessage, UserProfile, ProgressHistory } from '@/lib/supabase/types'
+import { OKR, ChatMessage, UserProfile, ProgressHistory, DailyTask } from '@/lib/supabase/types'
 
 class SupabaseService {
   private _supabase: ReturnType<typeof createClient> | null = null
@@ -324,6 +324,118 @@ class SupabaseService {
     } catch (error) {
       console.error('Error fetching progress history:', error)
       return { data: null, error: 'Network error' }
+    }
+  }
+
+  // 任务管理相关方法
+  async generateDailyTasks(taskType: 'daily' | 'weekly' = 'daily', forceRegenerate: boolean = false): Promise<{ data: DailyTask[] | null, error: string | null }> {
+    try {
+      const response = await fetch('/api/tasks/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ taskType, forceRegenerate })
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        return { data: null, error: result.error || 'Failed to generate tasks' }
+      }
+
+      return { data: result.tasks, error: null }
+    } catch (error) {
+      console.error('Error generating tasks:', error)
+      return { data: null, error: 'Network error' }
+    }
+  }
+
+  async getTodayTasks(date?: string, taskType: 'daily' | 'weekly' = 'daily'): Promise<{ data: DailyTask[] | null, error: string | null }> {
+    try {
+      const params = new URLSearchParams()
+      if (date) params.append('date', date)
+      params.append('type', taskType)
+
+      const response = await fetch(`/api/tasks?${params.toString()}`)
+      const result = await response.json()
+
+      if (!response.ok) {
+        return { data: null, error: result.error || 'Failed to fetch tasks' }
+      }
+
+      return { data: result.tasks, error: null }
+    } catch (error) {
+      console.error('Error fetching tasks:', error)
+      return { data: null, error: 'Network error' }
+    }
+  }
+
+  async updateTaskStatus(taskId: number, status: string, completedAt?: string): Promise<{ data: DailyTask | null, error: string | null }> {
+    try {
+      const response = await fetch('/api/tasks', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ taskId, status, completedAt })
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        return { data: null, error: result.error || 'Failed to update task' }
+      }
+
+      return { data: result.task, error: null }
+    } catch (error) {
+      console.error('Error updating task:', error)
+      return { data: null, error: 'Network error' }
+    }
+  }
+
+  async createTask(taskData: {
+    title: string
+    description?: string
+    okrId: string
+    keyResultIndex?: number
+    priority?: number
+    estimatedDuration?: number
+    taskType?: 'daily' | 'weekly'
+    taskDate?: string
+  }): Promise<{ data: DailyTask | null, error: string | null }> {
+    try {
+      const response = await fetch('/api/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(taskData)
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        return { data: null, error: result.error || 'Failed to create task' }
+      }
+
+      return { data: result.task, error: null }
+    } catch (error) {
+      console.error('Error creating task:', error)
+      return { data: null, error: 'Network error' }
+    }
+  }
+
+  async deleteTask(taskId: number): Promise<{ error: string | null }> {
+    try {
+      const response = await fetch(`/api/tasks?taskId=${taskId}`, {
+        method: 'DELETE'
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        return { error: result.error || 'Failed to delete task' }
+      }
+
+      return { error: null }
+    } catch (error) {
+      console.error('Error deleting task:', error)
+      return { error: 'Network error' }
     }
   }
 
