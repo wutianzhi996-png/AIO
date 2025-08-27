@@ -113,9 +113,9 @@ export async function POST(request: NextRequest) {
     const completion = await openai.chat.completions.create({
       model: 'grok-2-1212',
       messages: [
-        { 
-          role: 'system', 
-          content: '你是一位专业的学习规划师。请根据用户的OKR目标和前一天的任务完成情况，生成合理的学习任务。返回的结果必须是有效的JSON格式。' 
+        {
+          role: 'system',
+          content: '你是一个JSON API。只返回有效的JSON格式数据，不要任何解释或额外文字。根据用户的OKR目标生成学习任务列表。'
         },
         { role: 'user', content: prompt }
       ],
@@ -123,16 +123,37 @@ export async function POST(request: NextRequest) {
     })
 
     const aiResponse = completion.choices[0].message.content || ''
-    
-    // 解析AI响应
+    console.log('AI Response:', aiResponse)
+
+    // 解析AI响应 - 改进的JSON提取逻辑
     let generatedTasks
     try {
+      // 尝试直接解析
       generatedTasks = JSON.parse(aiResponse)
-    } catch (parseError) {
-      console.error('AI response parsing error:', parseError)
-      return NextResponse.json({ 
-        error: 'AI响应格式错误，请重试' 
-      }, { status: 500 })
+    } catch {
+      console.error('Direct JSON parse failed, trying to extract JSON from response')
+
+      // 尝试从响应中提取JSON
+      try {
+        // 查找JSON代码块
+        const jsonMatch = aiResponse.match(/```json\s*([\s\S]*?)\s*```/) ||
+                         aiResponse.match(/```\s*([\s\S]*?)\s*```/) ||
+                         aiResponse.match(/\{[\s\S]*\}/)
+
+        if (jsonMatch) {
+          const jsonStr = jsonMatch[1] || jsonMatch[0]
+          generatedTasks = JSON.parse(jsonStr)
+        } else {
+          throw new Error('No JSON found in response')
+        }
+      } catch (extractError) {
+        console.error('JSON extraction failed:', extractError)
+        console.error('AI Response was:', aiResponse)
+
+        // 如果AI解析失败，使用备用任务生成逻辑
+        console.log('Using fallback task generation')
+        generatedTasks = generateFallbackTasks(okrs, previousTasks, taskType)
+      }
     }
 
     // 验证和处理生成的任务
@@ -211,39 +232,93 @@ function buildTaskGenerationPrompt(okrs: Record<string, unknown>[], previousTask
     relatedKR: task.key_result_index
   })) : []
 
-  return `
-请基于以下信息生成${taskType === 'daily' ? '今日' : '本周'}的学习任务：
+  return `你是一个专业的学习规划师。请基于用户的OKR目标生成今日学习任务。
 
-## 用户的OKR目标：
+用户OKR目标：
 ${JSON.stringify(okrSummary, null, 2)}
 
-## 前一天的任务完成情况：
+前一天任务完成情况：
 ${previousTasks ? JSON.stringify(previousTasksSummary, null, 2) : '无前一天任务记录'}
 
-## 任务生成要求：
-1. 生成3-5个具体可执行的${taskType === 'daily' ? '每日' : '每周'}任务
-2. 任务必须与OKR的关键结果直接相关
-3. 考虑前一天未完成任务的延续性
-4. 设置合理的优先级(1-5，1最高)
-5. 估算每个任务的完成时间(分钟)
-6. 任务描述要具体明确，可操作性强
+请生成3-4个具体可执行的${taskType === 'daily' ? '每日' : '每周'}任务，要求：
+1. 任务与OKR关键结果直接相关
+2. 优先级1-5（1最高）
+3. 估算完成时间（分钟）
+4. 任务具体可操作
 
-## 返回格式(严格JSON)：
+**重要：只返回JSON格式，不要任何解释文字**
+
+JSON格式：
 {
   "tasks": [
     {
-      "title": "任务标题",
+      "title": "具体任务标题",
       "description": "详细描述",
-      "priority": 1,
+      "priority": 2,
       "estimatedDuration": 60,
       "relatedKRIndex": 0,
-      "okrId": "对应的OKR ID"
+      "okrId": "${okrs[0] ? (okrs[0] as { id: string }).id : ''}"
     }
   ]
+}`
 }
 
-请确保返回的是有效的JSON格式，不要包含任何其他文字。
-`
+function generateFallbackTasks(
+  okrs: Array<{ id: string; objective: string; key_results: Array<{ text: string; progress?: number }> }>,
+  _previousTasks: Record<string, unknown>[] | null,
+  _taskType: string
+) {
+  const tasks = []
+  const mainOkr = okrs[0]
+
+  if (!mainOkr) {
+    return { tasks: [] }
+  }
+
+  // 为每个关键结果生成一个任务
+  mainOkr.key_results.forEach((kr, index) => {
+    const progress = kr.progress || 0
+    let taskTitle = ''
+    let description = ''
+    let priority = 2
+
+    if (progress < 25) {
+      taskTitle = `开始学习：${kr.text.substring(0, 20)}...`
+      description = `开始执行关键结果：${kr.text}`
+      priority = 1
+    } else if (progress < 75) {
+      taskTitle = `继续推进：${kr.text.substring(0, 20)}...`
+      description = `继续完成关键结果：${kr.text}`
+      priority = 2
+    } else {
+      taskTitle = `完善提升：${kr.text.substring(0, 20)}...`
+      description = `完善和提升关键结果：${kr.text}`
+      priority = 3
+    }
+
+    tasks.push({
+      title: taskTitle,
+      description: description,
+      priority: priority,
+      estimatedDuration: 60,
+      relatedKRIndex: index,
+      okrId: mainOkr.id
+    })
+  })
+
+  // 如果关键结果少于3个，添加一个通用学习任务
+  if (tasks.length < 3) {
+    tasks.push({
+      title: `学习规划：${mainOkr.objective}`,
+      description: `制定详细的学习计划来实现目标：${mainOkr.objective}`,
+      priority: 2,
+      estimatedDuration: 45,
+      relatedKRIndex: null,
+      okrId: mainOkr.id
+    })
+  }
+
+  return { tasks: tasks.slice(0, 4) } // 最多返回4个任务
 }
 
 function processGeneratedTasks(
