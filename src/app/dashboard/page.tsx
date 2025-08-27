@@ -58,6 +58,11 @@ export default function Dashboard() {
     chatRef.current?.sendMessage(message)
   }
 
+  const handleTaskCompleted = useCallback(() => {
+    console.log('Task completed, refreshing OKR data')
+    loadUserData() // 刷新OKR数据
+  }, [loadUserData])
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
@@ -198,7 +203,7 @@ export default function Dashboard() {
           {/* Right Main Area - Tasks and Chat Interface */}
           <div className="lg:col-span-2 space-y-6 animate-fade-in">
             {/* Daily Tasks Widget */}
-            <DailyTasksWidget className="animate-fade-in" />
+            <DailyTasksWidget className="animate-fade-in" onTaskCompleted={handleTaskCompleted} />
 
             {/* Chat Interface */}
             <ChatInterface ref={chatRef} />

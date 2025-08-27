@@ -133,9 +133,20 @@ export async function PATCH(request: NextRequest) {
     }
 
     // 如果任务完成且有关联的关键结果，更新OKR进度
-    if (status === 'completed' && task.key_result_index !== null && task.progress_contribution > 0) {
+    console.log('Task completion check:', {
+      status,
+      key_result_index: task.key_result_index,
+      progress_contribution: task.progress_contribution,
+      task_id: task.id
+    })
+
+    if (status === 'completed' && task.key_result_index !== null) {
       try {
-        await updateOKRProgress(supabase, task, user.id)
+        // 如果没有progress_contribution或为0，设置默认值
+        const progressContribution = task.progress_contribution || 10
+        console.log('Updating OKR progress with contribution:', progressContribution)
+
+        await updateOKRProgress(supabase, { ...task, progress_contribution: progressContribution }, user.id)
       } catch (progressError) {
         console.error('Error updating OKR progress:', progressError)
         // 不因为进度更新失败而影响任务状态更新
@@ -160,18 +171,34 @@ async function updateOKRProgress(supabase: Awaited<ReturnType<typeof createClien
   const keyResultIndex = (task as { key_result_index: number }).key_result_index
   const progressContribution = (task as { progress_contribution?: number }).progress_contribution || 0
 
+  console.log('updateOKRProgress called with:', {
+    okr_id: okr?.id,
+    keyResultIndex,
+    progressContribution,
+    userId
+  })
+
   if (!okr || keyResultIndex === null || progressContribution <= 0) {
+    console.log('Skipping OKR update:', { hasOkr: !!okr, keyResultIndex, progressContribution })
     return
   }
 
   // 获取当前关键结果
   const currentKeyResult = okr.key_results[keyResultIndex]
   if (!currentKeyResult) {
+    console.log('Key result not found at index:', keyResultIndex)
     return
   }
 
   const currentProgress = currentKeyResult.progress || 0
   const newProgress = Math.min(100, currentProgress + progressContribution)
+
+  console.log('Progress update:', {
+    currentProgress,
+    progressContribution,
+    newProgress,
+    keyResultText: currentKeyResult.text
+  })
 
   // 更新关键结果进度
   const updatedKeyResults = [...okr.key_results]
@@ -184,6 +211,11 @@ async function updateOKRProgress(supabase: Awaited<ReturnType<typeof createClien
   }
 
   // 保存到数据库
+  console.log('Updating OKR in database:', {
+    okr_id: okr.id,
+    updatedKeyResults: updatedKeyResults[keyResultIndex]
+  })
+
   const { error: updateError } = await supabase
     .from('okrs')
     .update({ key_results: updatedKeyResults })
@@ -191,8 +223,11 @@ async function updateOKRProgress(supabase: Awaited<ReturnType<typeof createClien
     .eq('user_id', userId)
 
   if (updateError) {
+    console.error('OKR update error:', updateError)
     throw updateError
   }
+
+  console.log('OKR updated successfully')
 
   // 保存进度历史记录
   try {

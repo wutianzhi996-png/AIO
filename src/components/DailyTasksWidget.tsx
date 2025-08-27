@@ -8,9 +8,10 @@ import { supabaseService } from '@/lib/services/supabase-service'
 
 interface DailyTasksWidgetProps {
   className?: string
+  onTaskCompleted?: () => void // 任务完成时的回调
 }
 
-export default function DailyTasksWidget({ className = '' }: DailyTasksWidgetProps) {
+export default function DailyTasksWidget({ className = '', onTaskCompleted }: DailyTasksWidgetProps) {
   const [tasks, setTasks] = useState<DailyTask[]>([])
   const [loading, setLoading] = useState(false)
   const [generating, setGenerating] = useState(false)
@@ -85,11 +86,20 @@ export default function DailyTasksWidget({ className = '' }: DailyTasksWidgetPro
             ? { ...task, status: status as DailyTask['status'], completed_at: completedAt }
             : task
         ))
+
+        // 如果任务完成且有关联的关键结果，通知父组件刷新OKR数据
+        if (status === 'completed' && onTaskCompleted) {
+          const task = tasks.find(t => t.id === taskId)
+          if (task && task.key_result_index !== null) {
+            console.log('Task completed, triggering OKR refresh')
+            onTaskCompleted()
+          }
+        }
       }
     } catch {
       setError('更新任务状态失败')
     }
-  }, [])
+  }, [onTaskCompleted, tasks])
 
   useEffect(() => {
     loadTasks()
