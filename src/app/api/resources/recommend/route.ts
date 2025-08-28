@@ -19,17 +19,26 @@ export async function GET(request: NextRequest) {
     }
 
     // 获取用户学习偏好
-    const { data: preferences } = await supabase
+    const { data: preferences, error: preferencesError } = await supabase
       .from('user_learning_preferences')
       .select('*')
       .eq('user_id', user.id)
       .single()
 
+    // 如果没有偏好记录，忽略错误继续执行
+    if (preferencesError && preferencesError.code !== 'PGRST116') {
+      console.error('Preferences query error:', preferencesError)
+    }
+
     // 获取用户历史交互
-    const { data: interactions } = await supabase
+    const { data: interactions, error: interactionsError } = await supabase
       .from('user_resource_interactions')
       .select('resource_id, interaction_type, rating')
       .eq('user_id', user.id)
+
+    if (interactionsError) {
+      console.error('Interactions query error:', interactionsError)
+    }
 
     // 构建推荐查询
     let query = supabase
@@ -60,15 +69,13 @@ export async function GET(request: NextRequest) {
       query = query.eq('language', preferences.preferred_language)
     }
 
-    // 基于障碍类型筛选
-    if (obstacleType) {
-      query = query.contains('content_features', { suitable_for_obstacles: [obstacleType] })
-    }
+    // 暂时不在数据库层面筛选障碍类型，在应用层处理
+    // 这样可以确保总是有资源返回
 
     // 排除用户已完成的资源
     const completedResourceIds = interactions
-      ?.filter(i => i.interaction_type === 'complete')
-      ?.map(i => i.resource_id) || []
+      ?.filter(i => (i as Record<string, unknown>).interaction_type === 'complete')
+      ?.map(i => (i as Record<string, unknown>).resource_id as number) || []
 
     if (completedResourceIds.length > 0) {
       query = query.not('id', 'in', `(${completedResourceIds.join(',')})`)
@@ -85,9 +92,21 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to fetch resources' }, { status: 500 })
     }
 
+    console.log('Found candidate resources:', candidateResources?.length || 0)
+
+    // 如果没有候选资源，返回空结果
+    if (!candidateResources || candidateResources.length === 0) {
+      return NextResponse.json({
+        success: true,
+        recommendations: [],
+        total: 0,
+        message: 'No resources found matching criteria'
+      })
+    }
+
     // 计算个性化推荐评分
     const recommendations = await calculateRecommendationScores(
-      candidateResources || [],
+      candidateResources,
       user.id,
       preferences,
       interactions || [],

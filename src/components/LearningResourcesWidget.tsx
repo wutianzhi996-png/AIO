@@ -49,18 +49,22 @@ export default function LearningResourcesWidget({ className, obstacleType }: Lea
   const loadRecommendations = async () => {
     setLoading(true)
     try {
+      console.log('Loading recommendations with obstacleType:', obstacleType)
       const { data, error } = await supabaseService.getResourceRecommendations({
         obstacleType,
         limit: 12
       })
-      
+
       if (error) {
         console.error('Failed to load recommendations:', error)
+        alert('加载推荐资源失败: ' + error)
       } else {
+        console.log('Loaded recommendations:', data?.length || 0)
         setResources(data || [])
       }
     } catch (error) {
       console.error('Error loading recommendations:', error)
+      alert('网络错误，请重试')
     } finally {
       setLoading(false)
     }
@@ -82,21 +86,28 @@ export default function LearningResourcesWidget({ className, obstacleType }: Lea
   }
 
   const handleSearch = async () => {
-    if (!searchQuery.trim()) return
+    if (!searchQuery.trim()) {
+      alert('请输入搜索关键词')
+      return
+    }
 
     setLoading(true)
     setViewMode('search')
-    
+
     try {
+      console.log('Searching resources with query:', searchQuery, 'filters:', filters)
       const { data, error } = await supabaseService.searchResources(searchQuery, filters)
-      
+
       if (error) {
         console.error('Search failed:', error)
+        alert('搜索失败: ' + error)
       } else {
+        console.log('Search results:', data?.length || 0)
         setResources(data || [])
       }
     } catch (error) {
       console.error('Error searching resources:', error)
+      alert('搜索出错，请重试')
     } finally {
       setLoading(false)
     }
@@ -283,10 +294,26 @@ export default function LearningResourcesWidget({ className, obstacleType }: Lea
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => supabaseService.addPresetResources().then(() => loadRecommendations())}
+                onClick={async () => {
+                  try {
+                    setLoading(true)
+                    const { error } = await supabaseService.addPresetResources()
+                    if (error) {
+                      alert('添加预设资源失败: ' + error)
+                    } else {
+                      await loadRecommendations()
+                    }
+                  } catch (error) {
+                    console.error('Error adding preset resources:', error)
+                    alert('添加预设资源失败，请重试')
+                  } finally {
+                    setLoading(false)
+                  }
+                }}
                 className="mt-2"
+                disabled={loading}
               >
-                添加预设资源
+                {loading ? '添加中...' : '添加预设资源'}
               </Button>
             )}
           </div>
