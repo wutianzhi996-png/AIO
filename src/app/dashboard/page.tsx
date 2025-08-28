@@ -145,6 +145,9 @@ export default function Dashboard() {
               </div>
             )}
 
+            {/* Learning Resources Widget */}
+            <LearningResourcesWidget className="animate-fade-in" />
+
             {/* Quick Actions */}
             <div className="bg-white/70 backdrop-blur-sm p-4 rounded-xl card-shadow border border-white/20 animate-fade-in">
               <h3 className="font-medium mb-3 text-gray-900 flex items-center">
@@ -205,9 +208,6 @@ export default function Dashboard() {
           <div className="lg:col-span-2 space-y-6 animate-fade-in">
             {/* Daily Tasks Widget */}
             <DailyTasksWidget className="animate-fade-in" onTaskCompleted={handleTaskCompleted} />
-
-            {/* Learning Resources Widget */}
-            <LearningResourcesWidget className="animate-fade-in" />
 
             {/* Chat Interface */}
             <ChatInterface ref={chatRef} />
