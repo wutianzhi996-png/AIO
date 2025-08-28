@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/client'
-import { OKR, ChatMessage, UserProfile, ProgressHistory, DailyTask, TaskObstacle } from '@/lib/supabase/types'
+import { OKR, ChatMessage, UserProfile, ProgressHistory, DailyTask, TaskObstacle, LearningResource, UserResourceInteraction } from '@/lib/supabase/types'
 
 class SupabaseService {
   private _supabase: ReturnType<typeof createClient> | null = null
@@ -498,6 +498,140 @@ class SupabaseService {
       return { data: result.obstacle, error: null }
     } catch (error) {
       console.error('Error updating obstacle:', error)
+      return { data: null, error: 'Network error' }
+    }
+  }
+
+  // 学习资源推荐相关方法
+  async getResourceRecommendations(params?: {
+    obstacleType?: string
+    difficulty?: string
+    resourceType?: string
+    platform?: string
+    limit?: number
+  }): Promise<{ data: LearningResource[] | null, error: string | null }> {
+    try {
+      const searchParams = new URLSearchParams()
+      if (params?.obstacleType) searchParams.append('obstacleType', params.obstacleType)
+      if (params?.difficulty) searchParams.append('difficulty', params.difficulty)
+      if (params?.resourceType) searchParams.append('resourceType', params.resourceType)
+      if (params?.platform) searchParams.append('platform', params.platform)
+      if (params?.limit) searchParams.append('limit', params.limit.toString())
+
+      const response = await fetch(`/api/resources/recommend?${searchParams.toString()}`)
+      const result = await response.json()
+
+      if (!response.ok) {
+        return { data: null, error: result.error || 'Failed to get recommendations' }
+      }
+
+      return { data: result.recommendations, error: null }
+    } catch (error) {
+      console.error('Error getting recommendations:', error)
+      return { data: null, error: 'Network error' }
+    }
+  }
+
+  async searchResources(query: string, filters?: {
+    platform?: string
+    resource_type?: string
+    difficulty_level?: string
+    language?: string
+  }): Promise<{ data: LearningResource[] | null, error: string | null }> {
+    try {
+      const response = await fetch('/api/resources/recommend', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query, filters })
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        return { data: null, error: result.error || 'Failed to search resources' }
+      }
+
+      return { data: result.resources, error: null }
+    } catch (error) {
+      console.error('Error searching resources:', error)
+      return { data: null, error: 'Network error' }
+    }
+  }
+
+  async recordResourceInteraction(
+    resourceId: number,
+    interactionType: string,
+    options?: {
+      rating?: number
+      completionPercentage?: number
+      timeSpentMinutes?: number
+      feedback?: string
+    }
+  ): Promise<{ data: UserResourceInteraction | null, error: string | null }> {
+    try {
+      const response = await fetch('/api/resources/interactions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          resourceId,
+          interactionType,
+          ...options
+        })
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        return { data: null, error: result.error || 'Failed to record interaction' }
+      }
+
+      return { data: result.interaction, error: null }
+    } catch (error) {
+      console.error('Error recording interaction:', error)
+      return { data: null, error: 'Network error' }
+    }
+  }
+
+  async getUserResourceInteractions(params?: {
+    resourceId?: number
+    interactionType?: string
+    limit?: number
+  }): Promise<{ data: UserResourceInteraction[] | null, error: string | null }> {
+    try {
+      const searchParams = new URLSearchParams()
+      if (params?.resourceId) searchParams.append('resourceId', params.resourceId.toString())
+      if (params?.interactionType) searchParams.append('interactionType', params.interactionType)
+      if (params?.limit) searchParams.append('limit', params.limit.toString())
+
+      const response = await fetch(`/api/resources/interactions?${searchParams.toString()}`)
+      const result = await response.json()
+
+      if (!response.ok) {
+        return { data: null, error: result.error || 'Failed to get interactions' }
+      }
+
+      return { data: result.interactions, error: null }
+    } catch (error) {
+      console.error('Error getting interactions:', error)
+      return { data: null, error: 'Network error' }
+    }
+  }
+
+  async addPresetResources(): Promise<{ data: LearningResource[] | null, error: string | null }> {
+    try {
+      const response = await fetch('/api/resources/crawl', {
+        method: 'PUT'
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        return { data: null, error: result.error || 'Failed to add preset resources' }
+      }
+
+      return { data: result.resources, error: null }
+    } catch (error) {
+      console.error('Error adding preset resources:', error)
       return { data: null, error: 'Network error' }
     }
   }

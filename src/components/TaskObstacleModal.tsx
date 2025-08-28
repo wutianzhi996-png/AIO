@@ -2,9 +2,10 @@
 
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { X, AlertTriangle, Brain, CheckCircle, Clock } from 'lucide-react'
+import { X, AlertTriangle, Brain, CheckCircle, Clock, BookOpen } from 'lucide-react'
 import { DailyTask, TaskObstacle } from '@/lib/supabase/types'
 import { supabaseService } from '@/lib/services/supabase-service'
+import LearningResourcesWidget from './LearningResourcesWidget'
 
 interface TaskObstacleModalProps {
   isOpen: boolean
@@ -14,7 +15,7 @@ interface TaskObstacleModalProps {
 }
 
 export default function TaskObstacleModal({ isOpen, onClose, task, onObstacleReported }: TaskObstacleModalProps) {
-  const [step, setStep] = useState<'report' | 'analysis' | 'solutions'>('report')
+  const [step, setStep] = useState<'report' | 'analysis' | 'solutions' | 'resources'>('report')
   const [description, setDescription] = useState('')
   const [obstacleType, setObstacleType] = useState('other')
   const [loading, setLoading] = useState(false)
@@ -235,7 +236,15 @@ export default function TaskObstacleModal({ isOpen, onClose, task, onObstacleRep
                 <Button variant="outline" onClick={() => setStep('report')}>
                   重新报告
                 </Button>
-                <Button 
+                <Button
+                  variant="outline"
+                  onClick={() => setStep('resources')}
+                  className="bg-purple-600 hover:bg-purple-700 text-white"
+                >
+                  <BookOpen className="w-4 h-4 mr-2" />
+                  查看学习资源
+                </Button>
+                <Button
                   onClick={() => handleMarkResolved(selectedSolution || undefined)}
                   disabled={loading}
                   className="bg-green-600 hover:bg-green-700"
@@ -253,6 +262,26 @@ export default function TaskObstacleModal({ isOpen, onClose, task, onObstacleRep
                   )}
                 </Button>
               </div>
+            </div>
+          )}
+
+          {step === 'resources' && obstacle && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h3 className="text-md font-medium text-gray-900">推荐学习资源</h3>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setStep('analysis')}
+                >
+                  返回解决方案
+                </Button>
+              </div>
+
+              <LearningResourcesWidget
+                obstacleType={obstacle.obstacle_type}
+                className="border-0 shadow-none"
+              />
             </div>
           )}
         </div>

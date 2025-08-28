@@ -13,6 +13,7 @@ import { User } from '@supabase/supabase-js'
 import { Plus } from 'lucide-react'
 import UserProfileDropdown from '@/components/UserProfileDropdown'
 import DailyTasksWidget from '@/components/DailyTasksWidget'
+import LearningResourcesWidget from '@/components/LearningResourcesWidget'
 
 export default function Dashboard() {
   const [user, setUser] = useState<User | null>(null)
@@ -204,6 +205,9 @@ export default function Dashboard() {
           <div className="lg:col-span-2 space-y-6 animate-fade-in">
             {/* Daily Tasks Widget */}
             <DailyTasksWidget className="animate-fade-in" onTaskCompleted={handleTaskCompleted} />
+
+            {/* Learning Resources Widget */}
+            <LearningResourcesWidget className="animate-fade-in" />
 
             {/* Chat Interface */}
             <ChatInterface ref={chatRef} />

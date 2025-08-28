@@ -119,3 +119,56 @@ export interface TaskObstacle {
   updated_at: string
   resolved_at?: string
 }
+
+export interface LearningResource {
+  id: number
+  title: string
+  description: string
+  url: string
+  platform: 'youtube' | 'bilibili' | 'blog' | 'course' | 'documentation' | 'other'
+  resource_type: 'video' | 'article' | 'course' | 'tutorial' | 'documentation' | 'interactive'
+  difficulty_level: 'beginner' | 'intermediate' | 'advanced'
+  duration_minutes?: number
+  language: 'zh' | 'en' | 'other'
+  tags: string[]
+  author: string
+  thumbnail_url?: string
+  view_count?: number
+  rating?: number // 0-5 stars
+  created_at: string
+  updated_at: string
+  // AI分析的内容特征
+  content_features: {
+    topics: string[]
+    prerequisites: string[]
+    learning_outcomes: string[]
+    suitable_for_obstacles: string[] // 适合解决的障碍类型
+  }
+  // 质量评分
+  quality_score: number // 0-100
+  engagement_score: number // 基于用户互动的评分
+}
+
+export interface UserResourceInteraction {
+  id: number
+  user_id: string
+  resource_id: number
+  interaction_type: 'view' | 'bookmark' | 'complete' | 'rate' | 'share'
+  rating?: number // 1-5 stars
+  completion_percentage?: number // 0-100
+  time_spent_minutes?: number
+  feedback?: string
+  created_at: string
+}
+
+export interface ResourceRecommendation {
+  id: number
+  user_id: string
+  resource_id: number
+  recommendation_reason: string
+  relevance_score: number // 0-100
+  obstacle_match?: string // 匹配的障碍类型
+  created_at: string
+  clicked?: boolean
+  helpful_rating?: number // 用户对推荐的评价
+}
